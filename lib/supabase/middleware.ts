@@ -35,7 +35,8 @@ export async function updateSession(request: NextRequest) {
   // 해시를 읽어 세션을 세울 기회 자체가 없어지므로 이 경로는 미인증 상태로 통과시켜야 한다.
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/auth");
+    request.nextUrl.pathname.startsWith("/auth") ||
+    request.nextUrl.pathname === "/api/health";
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
