@@ -27,7 +27,7 @@ export function BodyCompositionChart({ records }: { records: BodyComposition[] }
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis dataKey="measured_at" fontSize={12} />
           <YAxis fontSize={12} />
-          <Tooltip contentStyle={{ background: "#151516", border: "1px solid #2a2a2d", borderRadius: 6, color: "#f2f2f0" }} labelStyle={{ color: "#f2f2f0" }} />
+          <Tooltip contentStyle={{ background: "#1e1e22", border: "1px solid #3a3a41", borderRadius: 6, color: "#f2f2f0" }} labelStyle={{ color: "#f2f2f0" }} />
           <Legend />
           <Line type="monotone" dataKey="체중" stroke="#f2f2f0" connectNulls />
           <Line type="monotone" dataKey="골격근량" stroke="#f26065" connectNulls />

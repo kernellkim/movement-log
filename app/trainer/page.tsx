@@ -177,7 +177,7 @@ export default async function TrainerDashboard({
                   </p>
                 )}
                 {risk && (activeCount === 0 || needsReassessment) && (
-                  <p className="mt-1 text-xs font-medium text-amber-600">
+                  <p className="mt-1 text-xs font-medium text-amber-400">
                     🔔 건강정보 업데이트 - 재검토 필요
                   </p>
                 )}
@@ -189,11 +189,11 @@ export default async function TrainerDashboard({
                 <Badge
                   variant={
                     risk === "high"
-                      ? "destructive"
+                      ? "riskHigh"
                       : risk === "mid"
-                        ? "secondary"
+                        ? "riskMid"
                         : risk === "low"
-                          ? "default"
+                          ? "riskLow"
                           : "outline"
                   }
                   render={

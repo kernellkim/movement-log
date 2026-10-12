@@ -15,7 +15,13 @@ const badgeVariants = cva(
           "bg-secondary text-secondary-foreground border-[color-mix(in_oklab,var(--secondary)_75%,black)] [a]:hover:bg-secondary/80",
         destructive:
           "bg-destructive/10 text-destructive border-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
-        info: "bg-primary/15 text-accent-foreground border-primary/40 [a]:hover:bg-primary/25",
+        info: "bg-sky-500/15 text-sky-300 border-sky-400/40 [a]:hover:bg-sky-500/25",
+        riskLow:
+          "bg-emerald-500/15 text-emerald-300 border-emerald-400/50 [a]:hover:bg-emerald-500/25",
+        riskMid:
+          "bg-amber-500/15 text-amber-300 border-amber-400/50 [a]:hover:bg-amber-500/25",
+        riskHigh:
+          "bg-red-500/20 text-red-300 border-red-400/60 [a]:hover:bg-red-500/30",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

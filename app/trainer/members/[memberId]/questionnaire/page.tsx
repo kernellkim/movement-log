@@ -82,10 +82,10 @@ export default async function MemberQuestionnairePage({
           <Badge
             variant={
               questionnaire.risk_level === "high"
-                ? "destructive"
-                : questionnaire.risk_level === "mid"
-                  ? "secondary"
-                  : "default"
+                    ? "riskHigh"
+                    : questionnaire.risk_level === "mid"
+                      ? "riskMid"
+                      : "riskLow"
             }
           >
             {questionnaire.risk_level ? RISK_LABEL[questionnaire.risk_level] : "분석 중"}

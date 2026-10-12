@@ -271,7 +271,7 @@ export function RoutineDraft({
       )}
 
       {warnings.length > 0 && (
-        <div className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
+        <div className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
           {warnings.map((w) => (
             <p key={w}>{w}</p>
           ))}

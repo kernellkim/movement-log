@@ -76,10 +76,10 @@ export default async function MemberDashboard({
               <Badge
                 variant={
                   questionnaire.risk_level === "high"
-                    ? "destructive"
+                    ? "riskHigh"
                     : questionnaire.risk_level === "mid"
-                      ? "secondary"
-                      : "default"
+                      ? "riskMid"
+                      : "riskLow"
                 }
               >
                 {questionnaire.risk_level
@@ -185,7 +185,7 @@ export default async function MemberDashboard({
                             )}
                           </div>
                           {item.isStale && (
-                            <p className="text-xs text-amber-600">
+                            <p className="text-xs text-amber-400">
                               이 운동은 이후 루틴이 수정되어 정확한 기록이 남아있지 않습니다
                               (현재 루틴 상태를 참고용으로 표시 중)
                             </p>
