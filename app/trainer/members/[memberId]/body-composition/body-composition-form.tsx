@@ -184,7 +184,7 @@ export function BodyCompositionForm({
           )}
           {extractError && <p className="text-sm text-destructive">{extractError}</p>}
           {aiFilled && !isExtracting && (
-            <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            <p className="rounded-lg bg-amber-500/15 px-3 py-2 text-sm text-amber-300">
               AI가 사진에서 읽은 값이에요. 저장 전에 꼭 확인해 주세요.
             </p>
           )}

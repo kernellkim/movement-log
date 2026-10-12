@@ -49,73 +49,42 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: #fafafa;
-  --foreground: #1a1a1a;
-  --card: #ffffff;
-  --card-foreground: #1a1a1a;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
-  --primary: #0f6e56;
-  --primary-foreground: #ffffff;
-  --secondary: #eef1f0;
-  --secondary-foreground: #1a1a1a;
-  --muted: #f0f0f0;
-  --muted-foreground: #6b6f6d;
-  --accent: #e6f2ee;
-  --accent-foreground: #0f6e56;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #e2e4e3;
-  --input: #e2e4e3;
-  --ring: #0f6e56;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.75rem;
-  --sidebar: #f5f5f5;
-  --sidebar-foreground: #1a1a1a;
-  --sidebar-primary: #0f6e56;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e6f2ee;
-  --sidebar-accent-foreground: #0f6e56;
-  --sidebar-border: #e2e4e3;
-  --sidebar-ring: #0f6e56;
-}
-
+:root,
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Black-red theme (same tokens as lesson-calendar-app). Dark only. */
+  color-scheme: dark;
+  --background: #0d0d0e;
+  --foreground: #f2f2f0;
+  --card: #151516;
+  --card-foreground: #f2f2f0;
+  --popover: #151516;
+  --popover-foreground: #f2f2f0;
+  --primary: #d62828;
+  --primary-foreground: #ffffff;
+  --secondary: #1d1d1f;
+  --secondary-foreground: #f2f2f0;
+  --muted: #1d1d1f;
+  --muted-foreground: #8c8c91;
+  --accent: #2a1517;
+  --accent-foreground: #f26065; /* red for small text on dark (5.2:1+) */
+  --destructive: #f26065;
+  --border: #2a2a2d;
+  --input: #2a2a2d;
+  --ring: #d62828;
+  --chart-1: #f26065;
+  --chart-2: #f2f2f0;
+  --chart-3: #f5a524;
+  --chart-4: #8c8c91;
+  --chart-5: #b81f1f;
+  --radius: 0.5rem;
+  --sidebar: #151516;
+  --sidebar-foreground: #f2f2f0;
+  --sidebar-primary: #d62828;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2a1517;
+  --sidebar-accent-foreground: #f26065;
+  --sidebar-border: #2a2a2d;
+  --sidebar-ring: #d62828;
 }
 
 @layer base {
