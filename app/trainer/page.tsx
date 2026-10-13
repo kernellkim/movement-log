@@ -48,6 +48,7 @@ export default async function TrainerDashboard({
     { data: activeRoutines },
     { data: bodyCompositions },
     { data: sessionLogs },
+    { data: consentRows },
   ] = await Promise.all([
     memberIds.length
       ? supabase
@@ -80,6 +81,13 @@ export default async function TrainerDashboard({
           .in("member_id", memberIds)
           .returns<{ member_id: string; created_at: string }[]>()
       : Promise.resolve({ data: [] as { member_id: string; created_at: string }[] }),
+    memberIds.length
+      ? supabase
+          .from("consent_records")
+          .select("member_id, consent_type")
+          .in("member_id", memberIds)
+          .returns<{ member_id: string; consent_type: string }[]>()
+      : Promise.resolve({ data: [] as { member_id: string; consent_type: string }[] }),
   ]);
 
   const riskByMember = new Map(
@@ -111,9 +119,23 @@ export default async function TrainerDashboard({
     }
   }
 
+  // "가입완료" = 비밀번호를 설정했고, 이용약관·개인정보 동의와 건강정보 동의를 모두
+  // 한 번 이상 마친 회원. (약관 버전이 바뀌어 재동의가 필요한 회원은 이미 가입한
+  // 상태이므로 여기서는 버전을 따지지 않는다.)
+  const consentTypesByMember = new Map<string, Set<string>>();
+  for (const c of consentRows ?? []) {
+    const set = consentTypesByMember.get(c.member_id) ?? new Set<string>();
+    set.add(c.consent_type);
+    consentTypesByMember.set(c.member_id, set);
+  }
   const joinedByMember = new Map<string, boolean>();
   for (const m of members ?? []) {
-    joinedByMember.set(m.id, Boolean(m.password_set_at));
+    const types = consentTypesByMember.get(m.id);
+    joinedByMember.set(
+      m.id,
+      Boolean(m.password_set_at) &&
+        Boolean(types?.has("terms_privacy") && types?.has("sensitive_health")),
+    );
   }
 
   return (
@@ -205,14 +227,9 @@ export default async function TrainerDashboard({
                 >
                   {risk ? RISK_LABEL[risk] : "문진표 없음"}
                 </Badge>
+                {joined && (
+                  <>
                 {(() => {
-                  if (!joined) {
-                    return (
-                      <Button variant="outline" size="sm" disabled>
-                        회원 가입 대기중
-                      </Button>
-                    );
-                  }
                   // 활성 루틴이 1개뿐이어도 이미 그 루틴으로 수업을 한 번 이상
                   // 완료했다면, 곧장 체크리스트로 보내지 않고 루틴 선택 화면을
                   // 거치게 한다 - 다른 루틴을 새로 시작하고 싶을 수 있어서다.
@@ -250,10 +267,12 @@ export default async function TrainerDashboard({
                 >
                   인바디
                 </Button>
+                  </>
+                )}
                 <ResetPasswordButton
                   memberId={member.id}
                   memberName={member.name ?? "회원"}
-                  joined={Boolean(joined)}
+                  joined={Boolean(member.password_set_at)}
                 />
                 <DeleteMemberButton memberId={member.id} />
               </div>
