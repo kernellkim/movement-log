@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getMemberForUser } from "@/lib/auth";
 import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
@@ -40,6 +41,22 @@ export default async function TrainerDashboard({
     .returns<Member[]>();
 
   const memberIds = (members ?? []).map((m) => m.id);
+
+  // 로그인 이메일은 auth.users에만 있어서 서버 전용 admin 클라이언트로 담당 회원 것만 조회한다.
+  const emailByUserId = new Map<string, string>();
+  const myUserIds = new Set((members ?? []).map((m) => m.user_id).filter(Boolean));
+  if (myUserIds.size > 0) {
+    try {
+      const { data: authList } = await createAdminClient().auth.admin.listUsers({
+        perPage: 1000,
+      });
+      for (const u of authList?.users ?? []) {
+        if (myUserIds.has(u.id) && u.email) emailByUserId.set(u.id, u.email);
+      }
+    } catch {
+      // 이메일 표시는 부가 정보라 실패해도 목록은 그대로 보여준다.
+    }
+  }
 
   // These 4 queries only depend on memberIds, not on each other, so run them
   // concurrently instead of one after another.
@@ -190,6 +207,11 @@ export default async function TrainerDashboard({
               <div>
                 <p className="text-sm font-medium text-foreground">
                   {member.name ?? "이름 없음"}
+                  {member.user_id && emailByUserId.get(member.user_id) && (
+                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                      ({emailByUserId.get(member.user_id)})
+                    </span>
+                  )}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   마지막 진행: {lastSessionAt ? formatDateTime(lastSessionAt) : "아직 진행 안 함"}
@@ -209,6 +231,7 @@ export default async function TrainerDashboard({
                 <Badge variant={joined ? "info" : "outline"}>
                   {joined ? "가입완료" : "초대됨"}
                 </Badge>
+                {joined && (
                 <Badge
                   variant={
                     risk === "high"
@@ -227,6 +250,7 @@ export default async function TrainerDashboard({
                 >
                   {risk ? RISK_LABEL[risk] : "문진표 없음"}
                 </Badge>
+                )}
                 {joined && (
                   <>
                 {(() => {
