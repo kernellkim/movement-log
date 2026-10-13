@@ -221,6 +221,7 @@ export default async function TrainerDashboard({
         <div className="flex items-center gap-2">
           <RefreshButton />
           <Button
+            size="sm"
             nativeButton={false}
             render={<Link href="/trainer/members/new" />}
           >
