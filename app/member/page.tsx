@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AutoDismissNotice } from "@/components/auto-dismiss-notice";
 import { formatSetsReps } from "@/lib/format";
 import { getSessionHistory } from "@/lib/session-history";
 import type { Questionnaire } from "@/lib/types";
@@ -62,10 +63,10 @@ export default async function MemberDashboard({
       </p>
 
       {questionnaire?.risk_level === "high" && (
-        <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+        <AutoDismissNotice className="rounded-lg bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
           ⚠️ 의료진 상담을 권장드립니다. 운동 시작 전 담당 트레이너와 상담해
           주세요.
-        </div>
+        </AutoDismissNotice>
       )}
 
       <Card>

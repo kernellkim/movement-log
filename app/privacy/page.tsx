@@ -56,33 +56,59 @@ export default function PrivacyPage() {
           위해 외부 AI 서비스를 이용합니다. AI는 의학적 진단이나 처방을 하지 않으며, 모든 결과는
           트레이너가 확인하는 &quot;권유·제안&quot; 단계입니다.
         </p>
-        <LegalTable
-          head={["수탁자", "국가", "위탁·이전 항목", "목적"]}
-          rows={[
-            [
-              "Anthropic (Claude API)",
-              "미국",
-              "문진 응답, 상해력·수술력·기저질환, 건강 상태 업데이트, 체성분 수치, 인바디 결과지 사진",
-              "AI 위험도 분류, 검사 추천, 루틴 생성, 인바디 값 추출",
-            ],
-            [
-              "Supabase",
-              "싱가포르",
-              "서비스에서 처리하는 모든 개인정보",
-              "데이터 저장 및 인증",
-            ],
-            [
-              "Vercel",
-              "한국(서울) 등",
-              "서비스 이용 중 전송되는 정보",
-              "웹 서비스 호스팅",
-            ],
-          ]}
-        />
+        <div className="space-y-4">
+          <div className="space-y-1.5 rounded-lg border border-border p-3">
+            <p className="font-medium text-foreground">Anthropic (Claude API) – AI 분석</p>
+            <ul className="list-disc space-y-1 pl-5 text-xs">
+              <li>이전받는 자 / 연락처: Anthropic PBC (privacy@anthropic.com)</li>
+              <li>국가: 미국</li>
+              <li>
+                이전 항목: 문진 응답, 상해력·수술력·기저질환, 건강 상태 업데이트, 체성분 수치,
+                인바디 결과지 사진
+              </li>
+              <li>이용 목적: 위험도 분류, 검사 항목 추천, 루틴 생성, 인바디 값 추출</li>
+              <li>이전 시기·방법: 해당 기능을 사용하는 시점에 인터넷(HTTPS)으로 전송</li>
+              <li>
+                보유 기간: Anthropic은 API로 보낸 입력·출력을 원칙적으로 30일 이내에 자동
+                삭제한다고 안내합니다. 다만 이용정책 위반으로 자동 탐지된 경우 입력·출력은 최대 2년,
+                분류 점수는 최대 7년까지 보관될 수 있고, 법령상 필요한 경우에도 더 오래 보관될 수
+                있습니다.
+              </li>
+              <li>
+                모델 학습: Anthropic은 상용 서비스(API)로 보낸 입력·출력을 기본적으로 모델 학습에
+                사용하지 않는다고 안내합니다.
+              </li>
+            </ul>
+          </div>
+
+          <div className="space-y-1.5 rounded-lg border border-border p-3">
+            <p className="font-medium text-foreground">Supabase – 데이터 저장·인증</p>
+            <ul className="list-disc space-y-1 pl-5 text-xs">
+              <li>이전받는 자 / 연락처: Supabase Pte. Ltd. (privacy@supabase.com)</li>
+              <li>국가: 싱가포르 (서버 위치)</li>
+              <li>이전 항목: 서비스에서 처리하는 모든 개인정보</li>
+              <li>이용 목적: 데이터 저장 및 로그인 인증</li>
+              <li>이전 시기·방법: 서비스 이용 중 상시, 인터넷(HTTPS)으로 전송·저장</li>
+              <li>보유 기간: 회원 삭제(탈퇴) 시까지</li>
+            </ul>
+          </div>
+
+          <div className="space-y-1.5 rounded-lg border border-border p-3">
+            <p className="font-medium text-foreground">Vercel – 웹 서비스 호스팅</p>
+            <ul className="list-disc space-y-1 pl-5 text-xs">
+              <li>이전받는 자 / 연락처: Vercel Inc. (privacy@vercel.com)</li>
+              <li>국가: 미국 (서비스 실행 서버는 서울 리전 사용)</li>
+              <li>이전 항목: 서비스 이용 중 전송되는 정보 및 접속 기록</li>
+              <li>이용 목적: 웹 서비스 제공(호스팅)</li>
+              <li>이전 시기·방법: 서비스 이용 중 상시, 인터넷(HTTPS)으로 전송</li>
+              <li>보유 기간: Vercel의 운영 정책에 따름 (서비스는 개인정보를 Vercel에 별도로 저장하지 않음)</li>
+            </ul>
+          </div>
+        </div>
         <p>
-          위 정보는 서비스를 이용하는 시점에 네트워크를 통해 전송되며, 각 수탁자의 정책에 따라
-          보관됩니다. 국외 이전을 원하지 않으시면 서비스 이용 및 민감정보 동의가 제한될 수
-          있습니다.
+          위 내용은 2026년 10월 13일 기준 각 사업자의 공식 안내를 바탕으로 작성되었으며, 사업자
+          정책이 바뀌면 달라질 수 있습니다. 국외 이전을 원하지 않으시면 서비스 이용 및 민감정보
+          동의가 제한될 수 있습니다.
         </p>
       </LegalSection>
 

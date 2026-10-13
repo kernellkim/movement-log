@@ -58,19 +58,27 @@ export function SensitiveHealthConsentField() {
           (민감정보) 수집·이용 및 AI 분석을 위한 국외 전송에 동의합니다.
         </span>
       </label>
-      <ul className="list-disc space-y-1 pl-10 text-xs text-muted-foreground">
-        <li>항목: PAR-Q 응답, 상해력, 수술력, 기저질환, 건강 상태 업데이트, 체성분 수치</li>
-        <li>목적: 위험도 분류, 검사 항목 추천, 몸 상태에 맞는 안전한 운동 루틴 생성</li>
-        <li>보유 기간: 회원 삭제(탈퇴) 시까지</li>
-        <li>
-          위 정보는 AI 분석을 위해 외부 AI 서비스(Anthropic, 미국)로 전송됩니다. AI는 진단이나
-          처방을 하지 않으며 트레이너가 결과를 확인합니다.
-        </li>
-        <li>
-          동의를 거부할 수 있으나, 거부하면 문진표를 작성할 수 없어 위험도 분류와 맞춤 루틴을
-          제공받을 수 없습니다.
-        </li>
-      </ul>
+      <details className="pl-6.5 text-xs text-muted-foreground">
+        <summary className="cursor-pointer">수집 내용 보기</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          <li>항목: PAR-Q 응답, 상해력, 수술력, 기저질환, 건강 상태 업데이트, 체성분 수치</li>
+          <li>목적: 위험도 분류, 검사 항목 추천, 몸 상태에 맞는 안전한 운동 루틴 생성</li>
+          <li>보유 기간: 회원 삭제(탈퇴) 시까지</li>
+          <li>
+            AI 분석을 위해 위 정보가 Anthropic(미국)으로 전송됩니다. 서버 저장은 Supabase(싱가포르)를
+            이용합니다. AI는 진단이나 처방을 하지 않으며 트레이너가 결과를 확인합니다.
+          </li>
+          <li>
+            Anthropic은 API로 보낸 데이터를 원칙적으로 30일 이내 삭제하며 기본적으로 모델 학습에
+            사용하지 않는다고 안내합니다. 전송 시기·방법, 이전받는 자 연락처 등 자세한 내용은
+            개인정보처리방침에서 확인할 수 있습니다.
+          </li>
+          <li>
+            동의를 거부할 수 있으나, 거부하면 문진표를 작성할 수 없어 위험도 분류와 맞춤 루틴을
+            제공받을 수 없습니다.
+          </li>
+        </ul>
+      </details>
       <p className="pl-6.5 text-xs">
         <Link href="/privacy" target="_blank" className="text-accent-foreground underline underline-offset-2">
           개인정보처리방침 자세히 보기
