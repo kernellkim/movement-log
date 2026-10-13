@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
 
 export function SessionCompletedDialog({
   show,
@@ -11,33 +11,26 @@ export function SessionCompletedDialog({
   show: boolean;
   closePath?: string;
 }) {
-  const [visible, setVisible] = useState(show);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  if (!visible) return null;
+  useEffect(() => {
+    if (show) dialogRef.current?.showModal();
+  }, [show]);
 
-  function close() {
+  function handleClose() {
     // router.replace would re-fetch the server component (e.g. /trainer loops
     // admin.auth.admin.getUserById per member, N+1) - just clean up the URL instead.
     window.history.replaceState(null, "", closePath);
-    setVisible(false);
   }
 
+  if (!show) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl">✅</CardTitle>
-          <CardTitle className="text-center">수업 완료</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-sm text-muted-foreground">
-            오늘 수업 기록이 저장되었습니다.
-          </p>
-          <Button size="lg" className="w-full" onClick={close}>
-            확인
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+    <Modal dialogRef={dialogRef} title="✅ 수업 완료" onClose={handleClose}>
+      <p className="text-sm text-foreground">오늘 수업 기록이 저장되었습니다.</p>
+      <Button size="lg" className="w-full" onClick={() => dialogRef.current?.close()}>
+        확인
+      </Button>
+    </Modal>
   );
 }

@@ -39,6 +39,14 @@ truth for decisions): page ID `3cc42b8c3bc181bba32ae02c9858e178`.
    they are locally. After finishing any edit (even a one-line fix), run
    git add / commit with a clear message / push, unless the user
    explicitly says not to for that specific change.
+6. **All popups/dialogs use the shared design — never `window.confirm` / `alert` / `prompt`.**
+   - Confirmation popups: `components/ui/confirm-dialog.tsx` (`ConfirmDialog`).
+   - Any other popup (info, error, result, link display): `components/ui/modal.tsx` (`Modal`).
+   - Fixed design: title `text-lg font-semibold`; body as a bullet list via `ModalList`;
+     emphasis (irreversible/warning) via `ModalDanger`; footer as `ModalActions`
+     (equal 2-column buttons, cancel + confirm); width `max-w-lg`; backdrop `black/70`.
+   - Do not hand-roll new `<dialog>` markup or change these styles per-popup; extend the
+     shared components if something is missing.
 
 ## Known patterns / gotchas
 - Next.js 16 renamed `middleware.ts` → `proxy.ts`.

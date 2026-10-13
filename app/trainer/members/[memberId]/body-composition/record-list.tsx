@@ -1,7 +1,8 @@
 "use client";
 
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ModalDanger } from "@/components/ui/modal";
 import type { BodyComposition } from "@/lib/types";
 import { deleteBodyCompositionRecord } from "./actions";
 
@@ -23,18 +24,19 @@ export function BodyCompositionRecordList({
             <CardHeader>
               <CardTitle>{record.measured_at}</CardTitle>
               <CardAction>
-                <form
+                <ConfirmDialog
+                  triggerLabel="삭제"
+                  title="이 기록을 삭제할까요?"
+                  items={[
+                    `${record.measured_at} 인바디 기록이 삭제됩니다.`,
+                    <>
+                      삭제한 기록은 <ModalDanger>되돌릴 수 없습니다.</ModalDanger>
+                    </>,
+                  ]}
+                  confirmLabel="삭제하기"
+                  confirmVariant="destructive"
                   action={deleteBodyCompositionRecord.bind(null, memberId, record.id)}
-                  onSubmit={(e) => {
-                    if (!confirm("이 기록을 삭제하시겠습니까?\n되돌릴 수 없습니다.")) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <Button type="submit" variant="destructive" size="sm">
-                    삭제
-                  </Button>
-                </form>
+                />
               </CardAction>
             </CardHeader>
             <CardContent>

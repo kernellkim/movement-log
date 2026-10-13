@@ -303,7 +303,7 @@ export default async function TrainerDashboard({
                   memberName={member.name ?? "회원"}
                   joined={Boolean(member.password_set_at)}
                 />
-                <DeleteMemberButton memberId={member.id} />
+                <DeleteMemberButton memberId={member.id} memberName={member.name ?? undefined} />
               </div>
             </Card>
           );
