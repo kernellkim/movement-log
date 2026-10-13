@@ -13,7 +13,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
-import { TermsPrivacyConsentField } from "@/components/consent/consent-fields";
+import {
+  SensitiveHealthConsentField,
+  TermsPrivacyConsentField,
+} from "@/components/consent/consent-fields";
 import { recordConsents } from "@/lib/consent";
 
 export default function SetPasswordPage() {
@@ -60,7 +63,9 @@ export default function SetPasswordPage() {
 
     // 가입 시점의 이용약관·개인정보 동의 기록. 실패해도 /member 게이트가
     // 다시 동의를 받으므로 가입 자체는 막지 않는다.
-    if (member) await recordConsents(supabase, member.id, ["terms_privacy"]);
+    if (member) {
+      await recordConsents(supabase, member.id, ["terms_privacy", "sensitive_health"]);
+    }
 
     router.push("/");
     router.refresh();
@@ -93,6 +98,7 @@ export default function SetPasswordPage() {
                 />
               </div>
               <TermsPrivacyConsentField />
+              <SensitiveHealthConsentField />
               <ConsentSubmitButton className="w-full" disabled={submitting}>
                 {submitting ? "설정 중..." : "설정 완료"}
               </ConsentSubmitButton>

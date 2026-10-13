@@ -51,3 +51,18 @@ export async function recordConsents(
     { onConflict: "member_id,consent_type,version", ignoreDuplicates: true },
   );
 }
+
+export async function hasConsent(
+  supabase: SupabaseClient,
+  memberId: string,
+  type: ConsentType,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("consent_records")
+    .select("id")
+    .eq("member_id", memberId)
+    .eq("consent_type", type)
+    .eq("version", CONSENT_VERSION)
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}

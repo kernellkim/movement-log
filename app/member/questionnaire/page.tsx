@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
+import { hasConsent } from "@/lib/consent";
 import { PARQ_QUESTIONS } from "@/lib/parq";
 import type { Questionnaire } from "@/lib/types";
 import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
@@ -94,6 +95,9 @@ export default async function QuestionnairePage({
       </div>
     );
   }
+
+  // 가입 때 이미 건강정보 동의를 받았다면 여기서 다시 묻지 않는다.
+  const needsSensitiveConsent = !(await hasConsent(supabase, member.id, "sensitive_health"));
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
@@ -223,7 +227,7 @@ export default async function QuestionnairePage({
           </CardContent>
         </Card>
 
-        <SensitiveHealthConsentField />
+        {needsSensitiveConsent && <SensitiveHealthConsentField />}
 
         <ConsentSubmitButton className="w-full">제출</ConsentSubmitButton>
       </form>
