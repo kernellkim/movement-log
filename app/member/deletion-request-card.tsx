@@ -59,7 +59,7 @@ function RequestForm() {
 
         <dialog
           ref={dialogRef}
-          className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl bg-card p-6 text-card-foreground ring-1 ring-foreground/10 backdrop:bg-black/70"
+          className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl bg-card p-6 text-card-foreground ring-1 ring-foreground/10 backdrop:bg-black/70"
         >
           <div className="space-y-5">
             <h2 className="text-lg font-semibold text-foreground">탈퇴를 요청할까요?</h2>
