@@ -7,20 +7,8 @@ import { SelfWorkoutList } from "@/components/self-workout-list";
 import { getSelfWorkoutAccess, todayKst } from "@/lib/self-workout";
 import { loadPersonalWorkoutContext } from "@/lib/self-workout-history";
 import type { Questionnaire, SelfWorkoutLog } from "@/lib/types";
-import { SelfWorkoutForm, type SessionTemplate } from "./self-workout-form";
+import { SelfWorkoutForm } from "./self-workout-form";
 import { DeleteSelfWorkoutButton } from "./delete-self-workout-button";
-
-type PastSession = {
-  id: string;
-  session_date: string;
-  session_log_items: {
-    exercise_id: string | null;
-    sets: number | null;
-    reps: number | null;
-    duration_seconds: number | null;
-    weight_kg: number | null;
-  }[];
-};
 
 export default async function SelfWorkoutPage() {
   const supabase = await createClient();
@@ -58,44 +46,6 @@ export default async function SelfWorkoutPage() {
   ]);
   const exercises = context?.exercises ?? [];
 
-  // 지난 수업에서 한 운동 구성을 불러와 시작할 수 있게 최근 수업 기록을 템플릿으로 넘긴다.
-  const { data: pastSessions } = access.allowed
-    ? await supabase
-        .from("session_logs")
-        .select(
-          "id, session_date, session_log_items(exercise_id, sets, reps, duration_seconds, weight_kg)",
-        )
-        .eq("member_id", member.id)
-        .order("session_date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(8)
-        .returns<PastSession[]>()
-    : { data: [] as PastSession[] };
-
-  const allowedIds = new Set(exercises.map((e) => e.id));
-  const templates: SessionTemplate[] = (pastSessions ?? [])
-    .map((session) => {
-      const all = (session.session_log_items ?? []).filter(
-        (i) => i.exercise_id,
-      );
-      const items = all
-        .filter((i) => allowedIds.has(i.exercise_id as string))
-        .map((i) => ({
-          exerciseId: i.exercise_id as string,
-          sets: i.sets,
-          reps: i.reps,
-          durationSeconds: i.duration_seconds,
-          weightKg: i.weight_kg,
-        }));
-      return {
-        id: session.id,
-        date: session.session_date,
-        items,
-        excluded: all.length - items.length,
-      };
-    })
-    .filter((t) => t.items.length > 0);
-
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
       <Button
@@ -132,7 +82,7 @@ export default async function SelfWorkoutPage() {
       {access.allowed ? (
         <SelfWorkoutForm
           exercises={exercises}
-          templates={templates}
+          templates={context?.templates ?? []}
           lastValues={context?.lastValues ?? []}
           recentCategories={context?.recentCategories ?? []}
           recommendedCategories={context?.recommendedCategories ?? []}

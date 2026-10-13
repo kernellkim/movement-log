@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { needsWeightInput } from "@/lib/format";
+import type { LastValue, SessionTemplate } from "@/lib/self-workout-history";
 import type { Exercise } from "@/lib/types";
 import { saveSelfWorkout } from "./actions";
 
@@ -21,28 +22,6 @@ type DraftItem = {
 
 const toNumber = (v: string): number | null =>
   v.trim() === "" ? null : Number(v);
-
-export type SessionTemplate = {
-  id: string;
-  date: string;
-  excluded: number; // 안전 기준상 제외된 운동 수
-  items: {
-    exerciseId: string;
-    sets: number | null;
-    reps: number | null;
-    durationSeconds: number | null;
-    weightKg: number | null;
-  }[];
-};
-
-export type LastValue = {
-  exerciseId: string;
-  sets: number | null;
-  reps: number | null;
-  durationSeconds: number | null;
-  weightKg: number | null;
-  lastDate: string;
-};
 
 const MAX_RECOMMENDED = 6;
 

@@ -5,6 +5,7 @@ import type { Exercise } from "@/lib/types";
 // Personal workouts are limited to exercises the member has actually done (checked) in
 // a session with the trainer. The risk filter is applied on top of that by callers.
 type SessionRow = {
+  id: string;
   created_at: string;
   session_date: string;
   session_log_items: {
@@ -26,6 +27,19 @@ export type LastValue = {
   lastDate: string;
 };
 
+export type SessionTemplate = {
+  id: string;
+  date: string;
+  excluded: number; // 안전 기준상 제외된 운동 수
+  items: {
+    exerciseId: string;
+    sets: number | null;
+    reps: number | null;
+    durationSeconds: number | null;
+    weightKg: number | null;
+  }[];
+};
+
 async function loadSessions(
   supabase: SupabaseClient,
   memberId: string,
@@ -33,7 +47,7 @@ async function loadSessions(
   const { data } = await supabase
     .from("session_logs")
     .select(
-      "created_at, session_date, session_log_items(exercise_id, checked, sets, reps, duration_seconds, weight_kg)",
+      "id, created_at, session_date, session_log_items(exercise_id, checked, sets, reps, duration_seconds, weight_kg)",
     )
     .eq("member_id", memberId)
     .order("session_date", { ascending: false })
@@ -64,6 +78,7 @@ function daysAgoKst(days: number): string {
 export type PersonalWorkoutContext = {
   exercises: Exercise[]; // pool: done with the trainer ∩ risk filter
   lastValues: LastValue[]; // most recent trainer-session values per exercise
+  templates: SessionTemplate[]; // last 8 sessions, loadable as a starting point
   recentCategories: string[]; // categories trained today/yesterday (sessions + personal)
   recommendedCategories: string[];
   // A health update / questionnaire / InBody newer than the last session means the
@@ -108,6 +123,30 @@ export async function loadPersonalWorkoutContext(
     allowed.has(v.exerciseId),
   );
   const categoryById = new Map(exercises.map((e) => [e.id, e.category]));
+
+  const templates: SessionTemplate[] = sessions
+    .slice(0, 8)
+    .map((session) => {
+      const done = (session.session_log_items ?? []).filter(
+        (i) => i.checked && i.exercise_id,
+      );
+      const items = done
+        .filter((i) => allowed.has(i.exercise_id as string))
+        .map((i) => ({
+          exerciseId: i.exercise_id as string,
+          sets: i.sets,
+          reps: i.reps,
+          durationSeconds: i.duration_seconds,
+          weightKg: i.weight_kg,
+        }));
+      return {
+        id: session.id,
+        date: session.session_date,
+        items,
+        excluded: done.length - items.length,
+      };
+    })
+    .filter((t) => t.items.length > 0);
 
   // Categories used today/yesterday, from trainer sessions and personal logs
   const cutoff = daysAgoKst(1);
@@ -171,6 +210,7 @@ export async function loadPersonalWorkoutContext(
   return {
     exercises,
     lastValues,
+    templates,
     recentCategories: [...recent],
     recommendedCategories: rested.length ? rested : poolCategories,
     needsTrainerCheck,

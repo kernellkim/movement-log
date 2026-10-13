@@ -138,7 +138,7 @@ export type ConsentRecord = {
   consented_at: string;
 };
 
-export type SelfWorkoutItem = {
+type SelfWorkoutItem = {
   id: string;
   log_id: string;
   exercise_id: string | null;
