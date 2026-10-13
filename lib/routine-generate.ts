@@ -26,6 +26,7 @@ export async function generateRoutine(input: {
   categories: string[];
   candidates: Exercise[];
   healthUpdatesText?: string;
+  extraContext?: string;
 }): Promise<RoutineDraft> {
   // 고위험군(mid/high)은 바벨/덤벨/머신처럼 무게가 들어가는 운동과 점프
   // 스쿼트/버피 같은 고충격(high_impact) 운동을 후보에서 제외하고 맨몸/밴드
@@ -115,7 +116,7 @@ export async function generateRoutine(input: {
 
 [건강 상태 업데이트 이력]
 ${input.healthUpdatesText || "없음"}
-
+${input.extraContext ? `\n${input.extraContext}\n` : ""}
 [검사 결과]
 ${assessmentSummary}
 

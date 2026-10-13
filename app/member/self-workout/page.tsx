@@ -4,12 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { SelfWorkoutList } from "@/components/self-workout-list";
+import { getSelfWorkoutAccess, todayKst } from "@/lib/self-workout";
 import {
-  filterExercisesForSelfWorkout,
-  getSelfWorkoutAccess,
-  todayKst,
-} from "@/lib/self-workout";
-import type { Exercise, Questionnaire, SelfWorkoutLog } from "@/lib/types";
+  loadAllowedExercises,
+  loadRecentTraining,
+} from "@/lib/self-workout-history";
+import type { Questionnaire, SelfWorkoutLog } from "@/lib/types";
 import { SelfWorkoutForm, type SessionTemplate } from "./self-workout-form";
 import { DeleteSelfWorkoutButton } from "./delete-self-workout-button";
 
@@ -46,14 +46,13 @@ export default async function SelfWorkoutPage() {
     Boolean(questionnaire),
   );
 
-  const [{ data: allExercises }, { data: logs }] = await Promise.all([
+  const [exercises, recent, { data: logs }] = await Promise.all([
     access.allowed
-      ? supabase
-          .from("exercise_library")
-          .select("*")
-          .order("name_ko")
-          .returns<Exercise[]>()
-      : Promise.resolve({ data: [] as Exercise[] }),
+      ? loadAllowedExercises(supabase, member.id, access.weighted)
+      : Promise.resolve([]),
+    access.allowed
+      ? loadRecentTraining(supabase, member.id)
+      : Promise.resolve({ recentCategories: [], summaryText: "" }),
     supabase
       .from("self_workout_logs")
       .select("*, self_workout_items(*)")
@@ -78,9 +77,14 @@ export default async function SelfWorkoutPage() {
         .returns<PastSession[]>()
     : { data: [] as PastSession[] };
 
-  const exercises = access.allowed
-    ? filterExercisesForSelfWorkout(allExercises ?? [], access.weighted)
-    : [];
+  // 최근 이틀 안에 쓴 부위를 뺀 나머지를 오늘의 추천 부위로 보여준다.
+  const poolCategories = Array.from(
+    new Set(exercises.map((e) => e.category).filter(Boolean) as string[]),
+  );
+  const rested = poolCategories.filter(
+    (c) => !recent.recentCategories.includes(c),
+  );
+  const recommendedCategories = rested.length ? rested : poolCategories;
 
   const allowedIds = new Set(exercises.map((e) => e.id));
   const templates: SessionTemplate[] = (pastSessions ?? [])
@@ -144,6 +148,8 @@ export default async function SelfWorkoutPage() {
           exercises={exercises}
           templates={templates}
           highRisk={access.highRisk}
+          recentCategories={recent.recentCategories}
+          recommendedCategories={recommendedCategories}
           today={todayKst()}
         />
       ) : (

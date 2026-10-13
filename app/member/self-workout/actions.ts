@@ -9,6 +9,7 @@ import {
   getSelfWorkoutAccess,
   todayKst,
 } from "@/lib/self-workout";
+import { loadTrainerExerciseIds } from "@/lib/self-workout-history";
 import type { Exercise, Questionnaire } from "@/lib/types";
 
 export type SelfWorkoutPayload = {
@@ -69,24 +70,8 @@ export async function saveSelfWorkout(
   }
   const memo = payload.memo.trim().slice(0, 500);
 
-  // 위험도 높음 회원은 지난 수업에서 한 운동만 기록할 수 있다(서버에서 다시 확인).
-  let historyIds: Set<string> | null = null;
-  if (access.highRisk) {
-    const { data: pastLogs } = await supabase
-      .from("session_logs")
-      .select("id")
-      .eq("member_id", member.id);
-    const logIds = (pastLogs ?? []).map((l) => l.id);
-    const { data: pastItems } = logIds.length
-      ? await supabase
-          .from("session_log_items")
-          .select("exercise_id")
-          .in("session_log_id", logIds)
-      : { data: [] as { exercise_id: string | null }[] };
-    historyIds = new Set(
-      (pastItems ?? []).map((i) => i.exercise_id).filter(Boolean) as string[],
-    );
-  }
+  // 개인 운동은 트레이너와 수업에서 해 본 운동만 기록할 수 있다(서버에서 다시 확인).
+  const historyIds = await loadTrainerExerciseIds(supabase, member.id);
 
   const ids = [...new Set(payload.items.map((i) => i.exerciseId))];
   const { data: exercises } = await supabase
@@ -104,7 +89,7 @@ export async function saveSelfWorkout(
   const rows = [];
   for (const [index, item] of payload.items.entries()) {
     const exercise = allowedById.get(item.exerciseId);
-    if (!exercise || (historyIds && !historyIds.has(exercise.id))) {
+    if (!exercise || !historyIds.has(exercise.id)) {
       return { error: "선택할 수 없는 운동이 포함되어 있습니다." };
     }
     const isDuration = exercise.unit_type === "duration";
@@ -139,6 +124,7 @@ export async function saveSelfWorkout(
       member_id: member.id,
       workout_date: payload.date,
       memo: memo || null,
+      ai_suggested: payload.aiSuggested === true && !access.highRisk,
     })
     .select("id")
     .single();

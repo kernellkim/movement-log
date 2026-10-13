@@ -39,11 +39,15 @@ export function SelfWorkoutForm({
   exercises,
   templates,
   highRisk,
+  recentCategories,
+  recommendedCategories,
   today,
 }: {
   exercises: Exercise[];
   templates: SessionTemplate[];
   highRisk: boolean;
+  recentCategories: string[];
+  recommendedCategories: string[];
   today: string;
 }) {
   const router = useRouter();
@@ -61,7 +65,9 @@ export function SelfWorkoutForm({
   );
   // AI 제안으로 시작한 기록이면 저장할 때 표시를 남긴다(트레이너 화면에 "AI 제안으로 시작"으로 보임).
   const [aiSuggested, setAiSuggested] = useState(false);
-  const [aiCategories, setAiCategories] = useState<string[]>([]);
+  const [aiCategories, setAiCategories] = useState<string[]>(
+    recommendedCategories.slice(0, 4),
+  );
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [loadedNotice, setLoadedNotice] = useState<string | null>(null);
@@ -263,40 +269,47 @@ export function SelfWorkoutForm({
                 불러올 수 있는 지난 수업 기록이 아직 없어요.
               </p>
             )}
-            {highRisk ? (
-              <p className="text-xs text-muted-foreground">
-                건강 상태상 지난 수업에서 해 본 운동만 기록할 수 있어요.
-              </p>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  onClick={() => setStep("ai")}
-                >
-                  AI 루틴 제안받기
-                </Button>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="w-full"
-                  onClick={startFresh}
-                >
-                  직접 만들기
-                </Button>
-              </>
+            {!highRisk && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                disabled={exercises.length === 0}
+                onClick={() => setStep("ai")}
+              >
+                AI 루틴 제안받기
+              </Button>
             )}
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={exercises.length === 0}
+              onClick={startFresh}
+            >
+              직접 만들기
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {exercises.length === 0
+                ? "트레이너와 함께 수업한 운동이 생기면 개인 운동을 기록할 수 있어요."
+                : "트레이너와 함께 해 본 운동만 고를 수 있어요."}
+            </p>
           </div>
         )}
 
         {step === "ai" && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              오늘 하고 싶은 부위를 골라 주세요. 내 문진·검사·인바디를 반영해
-              안전한 운동으로 제안해 드려요. 트레이너 확인 전 참고용이에요.
+              트레이너와 함께 해 본 운동 안에서 오늘 구성을 제안해 드려요. 최근
+              운동한 부위는 빼고 추천 부위를 미리 골라 뒀어요.
             </p>
+            {recentCategories.length > 0 && (
+              <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                최근 {recentCategories.join("·")} 운동을 했어요. 오늘은{" "}
+                {recommendedCategories.join("·")}를 추천해요.
+              </p>
+            )}
             <div className="flex flex-wrap gap-1.5">
               {aiCategoryOptions.map((c) => (
                 <Button
@@ -387,9 +400,7 @@ export function SelfWorkoutForm({
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
                 {loadedNotice ??
-                  (highRisk
-                    ? "불러온 운동의 세트·횟수를 고쳐서 기록해요."
-                    : "운동을 직접 골라 기록해요.")}
+                  "트레이너와 함께 해 본 운동을 골라 기록해요."}
               </p>
               <Button
                 type="button"
@@ -411,7 +422,7 @@ export function SelfWorkoutForm({
               />
             </div>
 
-            {!highRisk && (
+            {exercises.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="exercise-search">① 운동 고르기</Label>
                 <Input
@@ -437,8 +448,8 @@ export function SelfWorkoutForm({
                 <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border">
                   {matches.length === 0 ? (
                     <li className="px-3 py-2 text-sm text-muted-foreground">
-                      조건에 맞는 운동이 없어요. 내 건강 상태에 맞는 안전한
-                      운동만 보여드려요.
+                      조건에 맞는 운동이 없어요. 트레이너와 함께 해 본 운동 중
+                      내 건강 상태에 맞는 운동만 보여드려요.
                     </li>
                   ) : (
                     matches.map((e) => (
