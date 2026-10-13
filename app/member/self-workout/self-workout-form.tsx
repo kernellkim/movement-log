@@ -19,7 +19,8 @@ type DraftItem = {
   weight: string;
 };
 
-const toNumber = (v: string): number | null => (v.trim() === "" ? null : Number(v));
+const toNumber = (v: string): number | null =>
+  v.trim() === "" ? null : Number(v);
 
 export function SelfWorkoutForm({
   exercises,
@@ -34,28 +35,50 @@ export function SelfWorkoutForm({
   const [memo, setMemo] = useState("");
   const [items, setItems] = useState<DraftItem[]>([]);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("전체");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const categories = useMemo(
+    () => [
+      "전체",
+      ...Array.from(
+        new Set(exercises.map((e) => e.category).filter(Boolean) as string[]),
+      ),
+    ],
+    [exercises],
+  );
+
+  // 검색어를 입력하지 않아도 카테고리별로 훑어볼 수 있게 항상 목록을 보여준다.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return exercises
-      .filter((e) => (e.name_ko ?? e.name_en).toLowerCase().includes(q) || e.name_en.toLowerCase().includes(q))
-      .slice(0, 8);
-  }, [exercises, query]);
+    return exercises.filter(
+      (e) =>
+        (category === "전체" || e.category === category) &&
+        (!q ||
+          (e.name_ko ?? e.name_en).toLowerCase().includes(q) ||
+          e.name_en.toLowerCase().includes(q)),
+    );
+  }, [exercises, query, category]);
 
   function addExercise(exercise: Exercise) {
     setItems((prev) => [
       ...prev,
-      { key: `${exercise.id}-${Date.now()}`, exercise, sets: "", reps: "", weight: "" },
+      {
+        key: `${exercise.id}-${Date.now()}`,
+        exercise,
+        sets: "",
+        reps: "",
+        weight: "",
+      },
     ]);
-    setQuery("");
     setSaved(false);
   }
 
   function update(key: string, patch: Partial<DraftItem>) {
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
+    setItems((prev) =>
+      prev.map((i) => (i.key === key ? { ...i, ...patch } : i)),
+    );
     setSaved(false);
   }
 
@@ -70,8 +93,11 @@ export function SelfWorkoutForm({
           exerciseId: i.exercise.id,
           sets: toNumber(i.sets),
           reps: i.exercise.unit_type === "duration" ? null : toNumber(i.reps),
-          durationSeconds: i.exercise.unit_type === "duration" ? toNumber(i.reps) : null,
-          weightKg: needsWeightInput(i.exercise.equipment) ? toNumber(i.weight) : null,
+          durationSeconds:
+            i.exercise.unit_type === "duration" ? toNumber(i.reps) : null,
+          weightKg: needsWeightInput(i.exercise.equipment)
+            ? toNumber(i.weight)
+            : null,
         })),
       });
       if (result.error) {
@@ -102,8 +128,8 @@ export function SelfWorkoutForm({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="exercise-search">운동 추가</Label>
+        <div className="space-y-2">
+          <Label htmlFor="exercise-search">① 운동 고르기</Label>
           <Input
             id="exercise-search"
             type="search"
@@ -111,93 +137,135 @@ export function SelfWorkoutForm({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="운동 이름 검색 (예: 데드버그)"
           />
-          {query.trim() && (
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {matches.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-muted-foreground">
-                  검색 결과가 없어요. 담당 트레이너가 허용한 안전 범위의 운동만 고를 수 있어요.
-                </li>
-              ) : (
-                matches.map((e) => (
-                  <li key={e.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                    <span className="text-sm text-foreground">
-                      {e.name_ko ?? e.name_en}
-                      <span className="ml-1.5 text-xs text-muted-foreground">
-                        {e.category ?? ""}
-                      </span>
+          <div className="flex flex-wrap gap-1.5">
+            {categories.map((c) => (
+              <Button
+                key={c}
+                type="button"
+                size="sm"
+                variant={category === c ? "default" : "outline"}
+                onClick={() => setCategory(c)}
+              >
+                {c}
+              </Button>
+            ))}
+          </div>
+          <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+            {matches.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted-foreground">
+                조건에 맞는 운동이 없어요. 내 건강 상태에 맞는 안전한 운동만
+                보여드려요.
+              </li>
+            ) : (
+              matches.map((e) => (
+                <li
+                  key={e.id}
+                  className="flex items-center justify-between gap-2 px-3 py-2"
+                >
+                  <span className="text-sm text-foreground">
+                    {e.name_ko ?? e.name_en}
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      {e.category ?? ""}
                     </span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => addExercise(e)}>
-                      추가
-                    </Button>
-                  </li>
-                ))
-              )}
-            </ul>
-          )}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addExercise(e)}
+                  >
+                    추가
+                  </Button>
+                </li>
+              ))
+            )}
+          </ul>
         </div>
 
         {items.length > 0 && (
-          <ul className="space-y-3">
-            {items.map((item) => {
-              const isDuration = item.exercise.unit_type === "duration";
-              const showWeight = needsWeightInput(item.exercise.equipment);
-              return (
-                <li key={item.key} className="space-y-2 rounded-lg border border-border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-foreground">
-                      {item.exercise.name_ko ?? item.exercise.name_en}
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setItems((prev) => prev.filter((i) => i.key !== item.key))}
-                    >
-                      빼기
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">세트</Label>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={30}
-                        value={item.sets}
-                        onChange={(e) => update(item.key, { sets: e.target.value })}
-                      />
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">
+              ② 세트·횟수 입력
+            </p>
+            <ul className="space-y-3">
+              {items.map((item) => {
+                const isDuration = item.exercise.unit_type === "duration";
+                const showWeight = needsWeightInput(item.exercise.equipment);
+                return (
+                  <li
+                    key={item.key}
+                    className="space-y-2 rounded-lg border border-border p-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {item.exercise.name_ko ?? item.exercise.name_en}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setItems((prev) =>
+                            prev.filter((i) => i.key !== item.key),
+                          )
+                        }
+                      >
+                        빼기
+                      </Button>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        {isDuration ? "유지 시간(초)" : "횟수"}
-                      </Label>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={item.reps}
-                        onChange={(e) => update(item.key, { reps: e.target.value })}
-                      />
-                    </div>
-                    {showWeight && (
+                    <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">무게(kg)</Label>
+                        <Label className="text-xs text-muted-foreground">
+                          세트
+                        </Label>
                         <Input
                           type="number"
-                          inputMode="decimal"
-                          min={0}
-                          step="0.5"
-                          value={item.weight}
-                          onChange={(e) => update(item.key, { weight: e.target.value })}
+                          inputMode="numeric"
+                          min={1}
+                          max={30}
+                          value={item.sets}
+                          onChange={(e) =>
+                            update(item.key, { sets: e.target.value })
+                          }
                         />
                       </div>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">
+                          {isDuration ? "유지 시간(초)" : "횟수"}
+                        </Label>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={item.reps}
+                          onChange={(e) =>
+                            update(item.key, { reps: e.target.value })
+                          }
+                        />
+                      </div>
+                      {showWeight && (
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">
+                            무게(kg)
+                          </Label>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step="0.5"
+                            value={item.weight}
+                            onChange={(e) =>
+                              update(item.key, { weight: e.target.value })
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
 
         <div className="space-y-1.5">
@@ -213,7 +281,9 @@ export function SelfWorkoutForm({
         </div>
 
         {error && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
         )}
         {saved && (
           <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
@@ -228,7 +298,11 @@ export function SelfWorkoutForm({
           disabled={pending || items.length === 0}
           onClick={submit}
         >
-          {pending ? "저장 중..." : "기록 저장"}
+          {pending
+            ? "저장 중..."
+            : items.length === 0
+              ? "운동을 추가하면 저장할 수 있어요"
+              : "③ 기록 저장"}
         </Button>
       </CardContent>
     </Card>
