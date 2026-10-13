@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { formatSetsReps } from "@/lib/format";
 import type { SelfWorkoutLog } from "@/lib/types";
 
@@ -35,11 +34,6 @@ export function SelfWorkoutList({
               <div className="flex items-center justify-between gap-2">
                 <CardTitle>
                   {log.workout_date}
-                  {log.ai_suggested && (
-                    <Badge variant="outline" className="ml-2 align-middle">
-                      AI 제안으로 시작
-                    </Badge>
-                  )}
                 </CardTitle>
                 {renderActions?.(log)}
               </div>

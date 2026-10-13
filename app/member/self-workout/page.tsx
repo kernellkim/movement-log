@@ -5,10 +5,7 @@ import { getMemberForUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { SelfWorkoutList } from "@/components/self-workout-list";
 import { getSelfWorkoutAccess, todayKst } from "@/lib/self-workout";
-import {
-  loadAllowedExercises,
-  loadRecentTraining,
-} from "@/lib/self-workout-history";
+import { loadPersonalWorkoutContext } from "@/lib/self-workout-history";
 import type { Questionnaire, SelfWorkoutLog } from "@/lib/types";
 import { SelfWorkoutForm, type SessionTemplate } from "./self-workout-form";
 import { DeleteSelfWorkoutButton } from "./delete-self-workout-button";
@@ -46,13 +43,10 @@ export default async function SelfWorkoutPage() {
     Boolean(questionnaire),
   );
 
-  const [exercises, recent, { data: logs }] = await Promise.all([
+  const [context, { data: logs }] = await Promise.all([
     access.allowed
-      ? loadAllowedExercises(supabase, member.id, access.weighted)
-      : Promise.resolve([]),
-    access.allowed
-      ? loadRecentTraining(supabase, member.id)
-      : Promise.resolve({ recentCategories: [], summaryText: "" }),
+      ? loadPersonalWorkoutContext(supabase, member.id, access.weighted)
+      : Promise.resolve(null),
     supabase
       .from("self_workout_logs")
       .select("*, self_workout_items(*)")
@@ -62,6 +56,7 @@ export default async function SelfWorkoutPage() {
       .limit(30)
       .returns<SelfWorkoutLog[]>(),
   ]);
+  const exercises = context?.exercises ?? [];
 
   // 지난 수업에서 한 운동 구성을 불러와 시작할 수 있게 최근 수업 기록을 템플릿으로 넘긴다.
   const { data: pastSessions } = access.allowed
@@ -76,15 +71,6 @@ export default async function SelfWorkoutPage() {
         .limit(8)
         .returns<PastSession[]>()
     : { data: [] as PastSession[] };
-
-  // 최근 이틀 안에 쓴 부위를 뺀 나머지를 오늘의 추천 부위로 보여준다.
-  const poolCategories = Array.from(
-    new Set(exercises.map((e) => e.category).filter(Boolean) as string[]),
-  );
-  const rested = poolCategories.filter(
-    (c) => !recent.recentCategories.includes(c),
-  );
-  const recommendedCategories = rested.length ? rested : poolCategories;
 
   const allowedIds = new Set(exercises.map((e) => e.id));
   const templates: SessionTemplate[] = (pastSessions ?? [])
@@ -147,9 +133,10 @@ export default async function SelfWorkoutPage() {
         <SelfWorkoutForm
           exercises={exercises}
           templates={templates}
-          highRisk={access.highRisk}
-          recentCategories={recent.recentCategories}
-          recommendedCategories={recommendedCategories}
+          lastValues={context?.lastValues ?? []}
+          recentCategories={context?.recentCategories ?? []}
+          recommendedCategories={context?.recommendedCategories ?? []}
+          needsTrainerCheck={context?.needsTrainerCheck ?? false}
           today={todayKst()}
         />
       ) : (

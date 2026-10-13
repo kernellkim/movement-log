@@ -35,19 +35,32 @@ export type SessionTemplate = {
   }[];
 };
 
+export type LastValue = {
+  exerciseId: string;
+  sets: number | null;
+  reps: number | null;
+  durationSeconds: number | null;
+  weightKg: number | null;
+  lastDate: string;
+};
+
+const MAX_RECOMMENDED = 6;
+
 export function SelfWorkoutForm({
   exercises,
   templates,
-  highRisk,
+  lastValues,
   recentCategories,
   recommendedCategories,
+  needsTrainerCheck,
   today,
 }: {
   exercises: Exercise[];
   templates: SessionTemplate[];
-  highRisk: boolean;
+  lastValues: LastValue[];
   recentCategories: string[];
   recommendedCategories: string[];
+  needsTrainerCheck: boolean;
   today: string;
 }) {
   const router = useRouter();
@@ -60,16 +73,13 @@ export function SelfWorkoutForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   // 시작 방식: 먼저 "지난 수업 루틴 불러오기"와 "새로 만들기" 중 고른다.
-  const [step, setStep] = useState<"choose" | "pick-session" | "ai" | "edit">(
-    "choose",
+  const [step, setStep] = useState<
+    "choose" | "pick-session" | "recommend" | "edit"
+  >("choose");
+  const [pickedCategories, setPickedCategories] = useState<string[]>(
+    recommendedCategories,
   );
-  // AI 제안으로 시작한 기록이면 저장할 때 표시를 남긴다(트레이너 화면에 "AI 제안으로 시작"으로 보임).
-  const [aiSuggested, setAiSuggested] = useState(false);
-  const [aiCategories, setAiCategories] = useState<string[]>(
-    recommendedCategories.slice(0, 4),
-  );
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [recommendError, setRecommendError] = useState<string | null>(null);
   const [loadedNotice, setLoadedNotice] = useState<string | null>(null);
 
   const categories = useMemo(
@@ -82,7 +92,7 @@ export function SelfWorkoutForm({
     [exercises],
   );
 
-  const aiCategoryOptions = categories.filter((c) => c !== "전체");
+  const categoryOptions = categories.filter((c) => c !== "전체");
 
   // 검색어를 입력하지 않아도 카테고리별로 훑어볼 수 있게 항상 목록을 보여준다.
   const matches = useMemo(() => {
@@ -125,69 +135,66 @@ export function SelfWorkoutForm({
         ? `내 건강 상태에 맞지 않는 운동 ${template.excluded}개는 제외하고 불러왔어요.`
         : null,
     );
-    setAiSuggested(false);
     setSaved(false);
     setStep("edit");
   }
 
-  async function requestAiSuggestion() {
-    setAiError(null);
-    setAiLoading(true);
-    try {
-      const res = await fetch("/api/member/self-workout-suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categories: aiCategories }),
-      });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAiError(result.error ?? "AI 제안을 받지 못했어요.");
-        return;
+  // 규칙 기반 추천 구성: 고른 부위의 운동 중 트레이너와 최근에 한 운동부터 최대 6개를
+  // 부위별로 번갈아 담고, 세트·횟수·무게는 마지막 수업 값을 따른다(3세트 이상이면
+  // 개인 운동용으로 1세트 줄임).
+  function buildRecommendation() {
+    setRecommendError(null);
+    const lastById = new Map(lastValues.map((v) => [v.exerciseId, v]));
+    const byCategory = pickedCategories.map((c) =>
+      exercises
+        .filter((e) => e.category === c && lastById.has(e.id))
+        .sort((a, b) =>
+          (lastById.get(b.id)?.lastDate ?? "").localeCompare(
+            lastById.get(a.id)?.lastDate ?? "",
+          ),
+        ),
+    );
+    const picked: Exercise[] = [];
+    for (let round = 0; picked.length < MAX_RECOMMENDED; round++) {
+      let added = false;
+      for (const list of byCategory) {
+        if (round < list.length && picked.length < MAX_RECOMMENDED) {
+          picked.push(list[round]);
+          added = true;
+        }
       }
-      const byId = new Map(exercises.map((e) => [e.id, e]));
-      const drafted = (
-        result.items as {
-          exerciseId: string;
-          sets: number;
-          reps: number | null;
-          durationSeconds: number | null;
-        }[]
-      ).flatMap((t, index) => {
-        const exercise = byId.get(t.exerciseId);
-        if (!exercise) return [];
-        const isDuration = exercise.unit_type === "duration";
-        const amount = isDuration ? t.durationSeconds : t.reps;
-        return [
-          {
-            key: `${exercise.id}-ai-${Date.now()}-${index}`,
-            exercise,
-            sets: String(t.sets),
-            reps: amount != null ? String(amount) : "",
-            weight: "",
-          },
-        ];
-      });
-      if (drafted.length === 0) {
-        setAiError("제안된 운동을 불러오지 못했어요. 다시 시도해 주세요.");
-        return;
-      }
-      setItems(drafted);
-      setLoadedNotice(
-        `AI 제안이에요. 트레이너 확인 전 참고용이니 몸 상태에 맞게 고쳐서 쓰고, 불편하면 바로 멈추세요. ${result.reasoning ?? ""}`,
-      );
-      setAiSuggested(true);
-      setSaved(false);
-      setStep("edit");
-    } catch {
-      setAiError("AI 제안을 받지 못했어요. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setAiLoading(false);
+      if (!added) break;
     }
+    if (picked.length === 0) {
+      setRecommendError(
+        "고른 부위에서 트레이너와 함께 해 본 운동이 없어요. 다른 부위를 골라 주세요.",
+      );
+      return;
+    }
+    setItems(
+      picked.map((exercise, index) => {
+        const v = lastById.get(exercise.id)!;
+        const sets = v.sets != null && v.sets >= 3 ? v.sets - 1 : v.sets;
+        const amount =
+          exercise.unit_type === "duration" ? v.durationSeconds : v.reps;
+        return {
+          key: `${exercise.id}-rec-${Date.now()}-${index}`,
+          exercise,
+          sets: sets != null ? String(sets) : "",
+          reps: amount != null ? String(amount) : "",
+          weight: v.weightKg != null ? String(v.weightKg) : "",
+        };
+      }),
+    );
+    setLoadedNotice(
+      `${pickedCategories.join("·")} 추천 구성이에요. 트레이너와 함께 한 마지막 수업 기준이고, 3세트 이상이던 운동은 한 세트씩 줄였어요. 몸 상태에 맞게 고쳐서 쓰세요.`,
+    );
+    setSaved(false);
+    setStep("edit");
   }
 
   function startFresh() {
     setItems([]);
-    setAiSuggested(false);
     setLoadedNotice(null);
     setSaved(false);
     setStep("edit");
@@ -221,7 +228,6 @@ export function SelfWorkoutForm({
       const result = await saveSelfWorkout({
         date,
         memo,
-        aiSuggested,
         items: items.map((i) => ({
           exerciseId: i.exercise.id,
           sets: toNumber(i.sets),
@@ -239,8 +245,7 @@ export function SelfWorkoutForm({
       }
       setItems([]);
       setMemo("");
-      setAiSuggested(false);
-      setSaved(true);
+        setSaved(true);
       router.refresh();
     });
   }
@@ -269,18 +274,16 @@ export function SelfWorkoutForm({
                 불러올 수 있는 지난 수업 기록이 아직 없어요.
               </p>
             )}
-            {!highRisk && (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full"
-                disabled={exercises.length === 0}
-                onClick={() => setStep("ai")}
-              >
-                AI 루틴 제안받기
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full"
+              disabled={exercises.length === 0 || needsTrainerCheck}
+              onClick={() => setStep("recommend")}
+            >
+              오늘의 추천 구성 받기
+            </Button>
             <Button
               type="button"
               size="lg"
@@ -293,16 +296,18 @@ export function SelfWorkoutForm({
             <p className="text-xs text-muted-foreground">
               {exercises.length === 0
                 ? "트레이너와 함께 수업한 운동이 생기면 개인 운동을 기록할 수 있어요."
-                : "트레이너와 함께 해 본 운동만 고를 수 있어요."}
+                : needsTrainerCheck
+                  ? "마지막 수업 이후 건강 상태·인바디가 바뀌어서, 트레이너가 확인하기 전에는 추천 구성을 받을 수 없어요."
+                  : "트레이너와 함께 해 본 운동만 고를 수 있어요."}
             </p>
           </div>
         )}
 
-        {step === "ai" && (
+        {step === "recommend" && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              트레이너와 함께 해 본 운동 안에서 오늘 구성을 제안해 드려요. 최근
-              운동한 부위는 빼고 추천 부위를 미리 골라 뒀어요.
+              트레이너와 함께 해 본 운동으로 오늘 구성을 만들어 드려요. 최근
+              운동한 부위는 빼고 추천 부위를 미리 골라 뒀어요. 바꿔도 돼요.
             </p>
             {recentCategories.length > 0 && (
               <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -311,14 +316,14 @@ export function SelfWorkoutForm({
               </p>
             )}
             <div className="flex flex-wrap gap-1.5">
-              {aiCategoryOptions.map((c) => (
+              {categoryOptions.map((c) => (
                 <Button
                   key={c}
                   type="button"
                   size="sm"
-                  variant={aiCategories.includes(c) ? "default" : "outline"}
+                  variant={pickedCategories.includes(c) ? "default" : "outline"}
                   onClick={() =>
-                    setAiCategories((prev) =>
+                    setPickedCategories((prev) =>
                       prev.includes(c)
                         ? prev.filter((x) => x !== c)
                         : [...prev, c],
@@ -329,9 +334,9 @@ export function SelfWorkoutForm({
                 </Button>
               ))}
             </div>
-            {aiError && (
+            {recommendError && (
               <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {aiError}
+                {recommendError}
               </p>
             )}
             <div className="flex gap-2">
@@ -346,10 +351,10 @@ export function SelfWorkoutForm({
               <Button
                 type="button"
                 className="flex-1"
-                disabled={aiLoading || aiCategories.length === 0}
-                onClick={requestAiSuggestion}
+                disabled={pickedCategories.length === 0}
+                onClick={buildRecommendation}
               >
-                {aiLoading ? "AI가 구성 중... (몇 초 걸려요)" : "제안받기"}
+                추천 구성 만들기
               </Button>
             </div>
           </div>

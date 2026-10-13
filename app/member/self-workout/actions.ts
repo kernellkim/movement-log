@@ -15,7 +15,6 @@ import type { Exercise, Questionnaire } from "@/lib/types";
 export type SelfWorkoutPayload = {
   date: string;
   memo: string;
-  aiSuggested?: boolean;
   items: {
     exerciseId: string;
     sets: number | null;
@@ -124,7 +123,6 @@ export async function saveSelfWorkout(
       member_id: member.id,
       workout_date: payload.date,
       memo: memo || null,
-      ai_suggested: payload.aiSuggested === true && !access.highRisk,
     })
     .select("id")
     .single();
