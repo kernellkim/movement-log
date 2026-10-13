@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import type { Member, Questionnaire, Routine } from "@/lib/types";
 import { SessionCompletedDialog } from "./session-completed-dialog";
+import { RefreshButton } from "@/components/refresh-button";
 import { MemberList, type MemberRow } from "./member-list";
 
 export default async function TrainerDashboard({
@@ -215,9 +216,10 @@ export default async function TrainerDashboard({
           {error}
         </p>
       )}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">담당 회원</h1>
         <div className="flex items-center gap-2">
+          <RefreshButton />
           <Button
             nativeButton={false}
             render={<Link href="/trainer/members/new" />}

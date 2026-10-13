@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RefreshButton } from "@/components/refresh-button";
 import { AutoDismissNotice } from "@/components/auto-dismiss-notice";
 import { formatSetsReps, formatDateTime } from "@/lib/format";
 import { DeletionRequestCard } from "./deletion-request-card";
@@ -46,7 +47,7 @@ export default async function MemberDashboard({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">
           안녕하세요, {member.name ?? "회원"}님
           {user.email && (
@@ -56,6 +57,7 @@ export default async function MemberDashboard({
           )}
         </h1>
         <div className="flex items-center gap-2">
+          <RefreshButton />
           <form action={signOut}>
             <Button type="submit" variant="outline" size="sm">
               로그아웃
