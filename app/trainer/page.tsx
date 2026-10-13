@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import type { Member, Questionnaire, Routine } from "@/lib/types";
 import { SessionCompletedDialog } from "./session-completed-dialog";
 import { RefreshButton } from "@/components/refresh-button";
+import { todayKst } from "@/lib/self-workout";
 import { MemberList, type MemberRow } from "./member-list";
 
 export default async function TrainerDashboard({
@@ -62,6 +63,7 @@ export default async function TrainerDashboard({
     { data: bodyCompositions },
     { data: sessionLogs },
     { data: consentRows },
+    { data: selfWorkoutRows },
   ] = await Promise.all([
     memberIds.length
       ? supabase
@@ -109,7 +111,30 @@ export default async function TrainerDashboard({
       : Promise.resolve({
           data: [] as { member_id: string; consent_type: string }[],
         }),
+    memberIds.length
+      ? supabase
+          .from("self_workout_logs")
+          .select("member_id, workout_date")
+          .in("member_id", memberIds)
+          .returns<{ member_id: string; workout_date: string }[]>()
+      : Promise.resolve({
+          data: [] as { member_id: string; workout_date: string }[],
+        }),
   ]);
+
+  // 자율 운동 요약: 가장 최근 날짜와 최근 7일(오늘 포함) 기록 횟수
+  const weekStart = new Date(`${todayKst()}T00:00:00+09:00`);
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekStartStr = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul",
+  }).format(weekStart);
+  const selfWorkoutByMember = new Map<string, { last: string; week: number }>();
+  for (const row of selfWorkoutRows ?? []) {
+    const cur = selfWorkoutByMember.get(row.member_id) ?? { last: "", week: 0 };
+    if (row.workout_date > cur.last) cur.last = row.workout_date;
+    if (row.workout_date >= weekStartStr) cur.week += 1;
+    selfWorkoutByMember.set(row.member_id, cur);
+  }
 
   const riskByMember = new Map(
     (questionnaires ?? []).map((q) => [q.member_id, q]),
@@ -201,6 +226,9 @@ export default async function TrainerDashboard({
       lastSessionLabel: lastSessionAt ? formatDateTime(lastSessionAt) : null,
       deletionRequestedLabel: member.deletion_requested_at
         ? formatDateTime(member.deletion_requested_at)
+        : null,
+      selfWorkoutLabel: selfWorkoutByMember.has(member.id)
+        ? `${selfWorkoutByMember.get(member.id)!.last.slice(5).replace("-", "/")} · 최근 7일 ${selfWorkoutByMember.get(member.id)!.week}회`
         : null,
       needsReview: Boolean(risk && needsStart),
       actionHref,

@@ -137,3 +137,24 @@ export type ConsentRecord = {
   version: string;
   consented_at: string;
 };
+
+export type SelfWorkoutItem = {
+  id: string;
+  log_id: string;
+  exercise_id: string | null;
+  exercise_name: string;
+  sets: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  weight_kg: number | null;
+  sort_order: number;
+};
+
+export type SelfWorkoutLog = {
+  id: string;
+  member_id: string;
+  workout_date: string;
+  memo: string | null;
+  created_at: string;
+  self_workout_items?: SelfWorkoutItem[];
+};

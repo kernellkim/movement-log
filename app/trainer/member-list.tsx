@@ -19,6 +19,7 @@ export type MemberRow = {
   lastSessionAt: string | null; // ISO, 정렬용
   lastSessionLabel: string | null; // 서버에서 포맷한 표시 문구
   deletionRequestedLabel: string | null;
+  selfWorkoutLabel: string | null;
   needsReview: boolean;
   actionHref: string;
   actionLabel: string;
@@ -166,6 +167,11 @@ export function MemberList({ members }: { members: MemberRow[] }) {
               <p className="mt-1 text-xs text-muted-foreground">
                 마지막 진행: {member.lastSessionLabel ?? "아직 진행 안 함"}
               </p>
+              {member.joined && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  자율 운동: {member.selfWorkoutLabel ?? "기록 없음"}
+                </p>
+              )}
               {member.deletionRequestedLabel && (
                 <p className="mt-1 text-xs font-medium text-destructive">
                   🗑️ 탈퇴 요청 ({member.deletionRequestedLabel}) - 확인 후
@@ -235,6 +241,18 @@ export function MemberList({ members }: { members: MemberRow[] }) {
                     }
                   >
                     인바디
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={`/trainer/members/${member.id}/self-workouts`}
+                      />
+                    }
+                  >
+                    자율 운동
                   </Button>
                 </>
               )}
