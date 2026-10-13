@@ -44,12 +44,16 @@ export default async function TrainerDashboard({
 
   // 로그인 이메일은 auth.users에만 있어서 서버 전용 admin 클라이언트로 담당 회원 것만 조회한다.
   const emailByUserId = new Map<string, string>();
-  const myUserIds = new Set((members ?? []).map((m) => m.user_id).filter(Boolean));
+  const myUserIds = new Set(
+    (members ?? []).map((m) => m.user_id).filter(Boolean),
+  );
   if (myUserIds.size > 0) {
     try {
-      const { data: authList } = await createAdminClient().auth.admin.listUsers({
-        perPage: 1000,
-      });
+      const { data: authList } = await createAdminClient().auth.admin.listUsers(
+        {
+          perPage: 1000,
+        },
+      );
       for (const u of authList?.users ?? []) {
         if (myUserIds.has(u.id) && u.email) emailByUserId.set(u.id, u.email);
       }
@@ -82,7 +86,9 @@ export default async function TrainerDashboard({
           .in("member_id", memberIds)
           .eq("status", "active")
           .returns<Pick<Routine, "member_id" | "created_at">[]>()
-      : Promise.resolve({ data: [] as Pick<Routine, "member_id" | "created_at">[] }),
+      : Promise.resolve({
+          data: [] as Pick<Routine, "member_id" | "created_at">[],
+        }),
     memberIds.length
       ? supabase
           .from("body_composition_records")
@@ -90,21 +96,27 @@ export default async function TrainerDashboard({
           .in("member_id", memberIds)
           .eq("is_latest", true)
           .returns<{ member_id: string; created_at: string }[]>()
-      : Promise.resolve({ data: [] as { member_id: string; created_at: string }[] }),
+      : Promise.resolve({
+          data: [] as { member_id: string; created_at: string }[],
+        }),
     memberIds.length
       ? supabase
           .from("session_logs")
           .select("member_id, created_at")
           .in("member_id", memberIds)
           .returns<{ member_id: string; created_at: string }[]>()
-      : Promise.resolve({ data: [] as { member_id: string; created_at: string }[] }),
+      : Promise.resolve({
+          data: [] as { member_id: string; created_at: string }[],
+        }),
     memberIds.length
       ? supabase
           .from("consent_records")
           .select("member_id, consent_type")
           .in("member_id", memberIds)
           .returns<{ member_id: string; consent_type: string }[]>()
-      : Promise.resolve({ data: [] as { member_id: string; consent_type: string }[] }),
+      : Promise.resolve({
+          data: [] as { member_id: string; consent_type: string }[],
+        }),
   ]);
 
   const riskByMember = new Map(
@@ -166,7 +178,10 @@ export default async function TrainerDashboard({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">담당 회원</h1>
         <div className="flex items-center gap-2">
-          <Button nativeButton={false} render={<Link href="/trainer/members/new" />}>
+          <Button
+            nativeButton={false}
+            render={<Link href="/trainer/members/new" />}
+          >
             새 회원 추가
           </Button>
           <form action={signOut}>
@@ -180,7 +195,9 @@ export default async function TrainerDashboard({
       <div className="space-y-3">
         {(members ?? []).length === 0 && (
           <Card className="px-4 py-6">
-            <p className="text-sm text-muted-foreground">담당 회원이 없습니다.</p>
+            <p className="text-sm text-muted-foreground">
+              담당 회원이 없습니다.
+            </p>
           </Card>
         )}
         {(members ?? []).map((member) => {
@@ -189,121 +206,142 @@ export default async function TrainerDashboard({
           const joined = joinedByMember.get(member.id);
           const lastSessionAt = lastSessionAtByMember.get(member.id);
           const activeCount = activeRoutineCountByMember.get(member.id) ?? 0;
-          const latestRoutineCreatedAt = latestActiveRoutineCreatedAtByMember.get(member.id);
+          const latestRoutineCreatedAt =
+            latestActiveRoutineCreatedAtByMember.get(member.id);
           const latestBodyCompositionCreatedAt =
             latestBodyCompositionCreatedAtByMember.get(member.id);
           // 활성 루틴이 있어도, 그 루틴을 만든 이후 인바디가 새로
           // 갱신됐다면 문진표 갱신과 동일하게 재검사부터 다시 진행한다.
           const needsReassessment = Boolean(
             latestRoutineCreatedAt &&
-              latestBodyCompositionCreatedAt &&
-              latestBodyCompositionCreatedAt > latestRoutineCreatedAt,
+            latestBodyCompositionCreatedAt &&
+            latestBodyCompositionCreatedAt > latestRoutineCreatedAt,
           );
           return (
-            <Card
-              key={member.id}
-              className="flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
-            >
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {member.name ?? "이름 없음"}
-                  {member.user_id && emailByUserId.get(member.user_id) && (
-                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                      ({emailByUserId.get(member.user_id)})
-                    </span>
+            <Card key={member.id} className="gap-3 px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {member.name ?? "이름 없음"}
+                    {member.user_id && emailByUserId.get(member.user_id) && (
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        ({emailByUserId.get(member.user_id)})
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    마지막 진행:{" "}
+                    {lastSessionAt
+                      ? formatDateTime(lastSessionAt)
+                      : "아직 진행 안 함"}
+                  </p>
+                  {member.deletion_requested_at && (
+                    <p className="mt-1 text-xs font-medium text-destructive">
+                      🗑️ 탈퇴 요청 (
+                      {formatDateTime(member.deletion_requested_at)}) - 확인 후
+                      삭제해 주세요
+                    </p>
                   )}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  마지막 진행: {lastSessionAt ? formatDateTime(lastSessionAt) : "아직 진행 안 함"}
-                </p>
-                {member.deletion_requested_at && (
-                  <p className="mt-1 text-xs font-medium text-destructive">
-                    🗑️ 탈퇴 요청 ({formatDateTime(member.deletion_requested_at)}) - 확인 후 삭제해 주세요
-                  </p>
-                )}
-                {risk === "high" && (
-                  <p className="mt-1 text-xs font-medium text-destructive">
-                    ⚠️ 의료진 상담 권장 대상입니다
-                  </p>
-                )}
-                {risk && (activeCount === 0 || needsReassessment) && (
-                  <p className="mt-1 text-xs font-medium text-amber-400">
-                    🔔 건강정보 업데이트 - 재검토 필요
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={joined ? "info" : "outline"}>
-                  {joined ? "가입완료" : "초대됨"}
-                </Badge>
-                {joined && (
-                <Badge
-                  variant={
-                    risk === "high"
-                      ? "riskHigh"
-                      : risk === "mid"
-                        ? "riskMid"
-                        : risk === "low"
-                          ? "riskLow"
-                          : "outline"
-                  }
-                  render={
-                    risk ? (
-                      <Link href={`/trainer/members/${member.id}/questionnaire`} />
-                    ) : undefined
-                  }
-                >
-                  {risk ? RISK_LABEL[risk] : "문진표 없음"}
-                </Badge>
-                )}
-                {joined && (
-                  <>
-                {(() => {
-                  // 활성 루틴이 1개뿐이어도 이미 그 루틴으로 수업을 한 번 이상
-                  // 완료했다면, 곧장 체크리스트로 보내지 않고 루틴 선택 화면을
-                  // 거치게 한다 - 다른 루틴을 새로 시작하고 싶을 수 있어서다.
-                  const hasCompletedSession = lastSessionAtByMember.has(member.id);
-                  const href =
-                    activeCount === 0 || needsReassessment
-                      ? `/trainer/members/${member.id}/body-composition`
-                      : activeCount === 1 && !hasCompletedSession
-                        ? `/trainer/members/${member.id}/session`
-                        : `/trainer/members/${member.id}/routines`;
-                  const label =
-                    activeCount === 0 || needsReassessment
-                      ? "검사·루틴 시작"
-                      : activeCount === 1 && !hasCompletedSession
-                        ? "수업 체크리스트"
-                        : "루틴 선택";
-                  return (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      nativeButton={false}
-                      render={<Link href={href} />}
+                  {risk === "high" && (
+                    <p className="mt-1 text-xs font-medium text-destructive">
+                      ⚠️ 의료진 상담 권장 대상입니다
+                    </p>
+                  )}
+                  {risk && (activeCount === 0 || needsReassessment) && (
+                    <p className="mt-1 text-xs font-medium text-amber-400">
+                      🔔 건강정보 업데이트 - 재검토 필요
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  <Badge variant={joined ? "info" : "outline"}>
+                    {joined ? "가입완료" : "초대됨"}
+                  </Badge>
+                  {joined && (
+                    <Badge
+                      variant={
+                        risk === "high"
+                          ? "riskHigh"
+                          : risk === "mid"
+                            ? "riskMid"
+                            : risk === "low"
+                              ? "riskLow"
+                              : "outline"
+                      }
+                      render={
+                        risk ? (
+                          <Link
+                            href={`/trainer/members/${member.id}/questionnaire`}
+                          />
+                        ) : undefined
+                      }
                     >
-                      {label}
-                    </Button>
-                  );
-                })()}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  nativeButton={false}
-                  render={
-                    <Link href={`/trainer/members/${member.id}/body-composition`} />
-                  }
-                >
-                  인바디
-                </Button>
-                  </>
-                )}
-                <ResetPasswordButton
-                  memberId={member.id}
-                  memberName={member.name ?? "회원"}
-                  joined={Boolean(member.password_set_at)}
-                />
-                <DeleteMemberButton memberId={member.id} memberName={member.name ?? undefined} />
+                      {risk ? RISK_LABEL[risk] : "문진표 없음"}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {joined && (
+                    <>
+                      {(() => {
+                        // 활성 루틴이 1개뿐이어도 이미 그 루틴으로 수업을 한 번 이상
+                        // 완료했다면, 곧장 체크리스트로 보내지 않고 루틴 선택 화면을
+                        // 거치게 한다 - 다른 루틴을 새로 시작하고 싶을 수 있어서다.
+                        const hasCompletedSession = lastSessionAtByMember.has(
+                          member.id,
+                        );
+                        const href =
+                          activeCount === 0 || needsReassessment
+                            ? `/trainer/members/${member.id}/body-composition`
+                            : activeCount === 1 && !hasCompletedSession
+                              ? `/trainer/members/${member.id}/session`
+                              : `/trainer/members/${member.id}/routines`;
+                        const label =
+                          activeCount === 0 || needsReassessment
+                            ? "검사·루틴 시작"
+                            : activeCount === 1 && !hasCompletedSession
+                              ? "수업 체크리스트"
+                              : "루틴 선택";
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            nativeButton={false}
+                            render={<Link href={href} />}
+                          >
+                            {label}
+                          </Button>
+                        );
+                      })()}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        nativeButton={false}
+                        render={
+                          <Link
+                            href={`/trainer/members/${member.id}/body-composition`}
+                          />
+                        }
+                      >
+                        인바디
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <ResetPasswordButton
+                    memberId={member.id}
+                    memberName={member.name ?? "회원"}
+                    joined={Boolean(member.password_set_at)}
+                  />
+                  <DeleteMemberButton
+                    memberId={member.id}
+                    memberName={member.name ?? undefined}
+                  />
+                </div>
               </div>
             </Card>
           );
