@@ -11,6 +11,15 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 // Component 렌더링 중에는 쿠키를 쓸 수 없다) - 그래서 ../page.tsx가 확인 여부를
 // 판단한 뒤 실제 검증은 이 라우트로 넘긴다.
 export async function GET(request: Request) {
+  // 브라우저/Next의 prefetch 요청은 검증하지 않는다 (일회용 토큰 보호).
+  const purpose =
+    request.headers.get("sec-purpose") ??
+    request.headers.get("purpose") ??
+    request.headers.get("next-router-prefetch");
+  if (purpose || request.headers.get("rsc")) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   const { searchParams, origin } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
