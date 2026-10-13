@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
 import { getMissingConsents } from "@/lib/consent";
@@ -54,9 +55,7 @@ export default async function ConsentPage({
             )}
             {missing.includes("terms_privacy") && <TermsPrivacyConsentField />}
             {missing.includes("sensitive_health") && <SensitiveHealthConsentField />}
-            <Button type="submit" size="lg" className="w-full">
-              동의하고 계속하기
-            </Button>
+            <ConsentSubmitButton className="w-full">동의하고 계속하기</ConsentSubmitButton>
           </form>
           <form action={signOut} className="mt-3">
             <Button type="submit" variant="ghost" size="sm" className="w-full">

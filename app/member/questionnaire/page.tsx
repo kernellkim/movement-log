@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
 import { PARQ_QUESTIONS } from "@/lib/parq";
 import type { Questionnaire } from "@/lib/types";
+import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
 import { SensitiveHealthConsentField } from "@/components/consent/consent-fields";
 import { BirthDatePicker } from "./birth-date-picker";
 import { submitQuestionnaire, submitHealthUpdate } from "./actions";
@@ -224,9 +225,7 @@ export default async function QuestionnairePage({
 
         <SensitiveHealthConsentField />
 
-        <Button type="submit" size="lg" className="w-full">
-          제출
-        </Button>
+        <ConsentSubmitButton className="w-full">제출</ConsentSubmitButton>
       </form>
     </div>
   );

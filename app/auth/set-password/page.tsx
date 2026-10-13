@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
 import { TermsPrivacyConsentField } from "@/components/consent/consent-fields";
 import { recordConsents } from "@/lib/consent";
 
@@ -93,14 +93,9 @@ export default function SetPasswordPage() {
                 />
               </div>
               <TermsPrivacyConsentField />
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full"
-                disabled={submitting}
-              >
+              <ConsentSubmitButton className="w-full" disabled={submitting}>
                 {submitting ? "설정 중..." : "설정 완료"}
-              </Button>
+              </ConsentSubmitButton>
             </form>
           )}
         </CardContent>

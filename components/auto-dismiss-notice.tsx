@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 export function AutoDismissNotice({
   children,
   className,
-  visibleMs = 3000,
+  visibleMs = 5000,
 }: {
   children: React.ReactNode;
   className?: string;
