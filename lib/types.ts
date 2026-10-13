@@ -8,6 +8,7 @@ export type Member = {
   birth_date: string | null;
   gender: string | null;
   password_set_at: string | null;
+  deletion_requested_at: string | null;
 };
 
 export type ParqAnswer = {

@@ -216,6 +216,11 @@ export default async function TrainerDashboard({
                 <p className="mt-1 text-xs text-muted-foreground">
                   마지막 진행: {lastSessionAt ? formatDateTime(lastSessionAt) : "아직 진행 안 함"}
                 </p>
+                {member.deletion_requested_at && (
+                  <p className="mt-1 text-xs font-medium text-destructive">
+                    🗑️ 탈퇴 요청 ({formatDateTime(member.deletion_requested_at)}) - 확인 후 삭제해 주세요
+                  </p>
+                )}
                 {risk === "high" && (
                   <p className="mt-1 text-xs font-medium text-destructive">
                     ⚠️ 의료진 상담 권장 대상입니다

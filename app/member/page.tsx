@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AutoDismissNotice } from "@/components/auto-dismiss-notice";
-import { formatSetsReps } from "@/lib/format";
+import { formatSetsReps, formatDateTime } from "@/lib/format";
+import { DeletionRequestCard } from "./deletion-request-card";
 import { getSessionHistory } from "@/lib/session-history";
 import type { Questionnaire } from "@/lib/types";
 
@@ -212,6 +213,12 @@ export default async function MemberDashboard({
           ))
         )}
       </div>
+
+      <DeletionRequestCard
+        requestedAtLabel={
+          member.deletion_requested_at ? formatDateTime(member.deletion_requested_at) : null
+        }
+      />
     </div>
   );
 }
