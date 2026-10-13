@@ -46,7 +46,7 @@ export async function saveSelfWorkout(payload: SelfWorkoutPayload): Promise<Resu
     .eq("is_latest", true)
     .maybeSingle<Pick<Questionnaire, "risk_level">>();
   const access = getSelfWorkoutAccess(questionnaire?.risk_level, Boolean(questionnaire));
-  if (!access.allowed) return { error: "지금은 자율 운동을 기록할 수 없습니다. 담당 트레이너와 상담해 주세요." };
+  if (!access.allowed) return { error: "지금은 개인 운동을 기록할 수 없습니다. 담당 트레이너와 상담해 주세요." };
 
   const today = todayKst();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.date) || payload.date > today) {

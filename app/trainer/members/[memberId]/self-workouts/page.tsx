@@ -37,7 +37,7 @@ export default async function MemberSelfWorkoutsPage({
 
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
-          {member.name ?? "회원"} - 자율 운동 기록
+          {member.name ?? "회원"} - 개인 운동 기록
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           회원이 PT 없는 날 직접 기록한 운동이에요. 최근 60건까지 보여드려요.
@@ -45,7 +45,7 @@ export default async function MemberSelfWorkoutsPage({
       </div>
 
       <div className="space-y-3">
-        <SelfWorkoutList logs={logs ?? []} emptyText="아직 기록된 자율 운동이 없어요." />
+        <SelfWorkoutList logs={logs ?? []} emptyText="아직 기록된 개인 운동이 없어요." />
       </div>
     </div>
   );

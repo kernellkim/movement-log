@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatSetsReps } from "@/lib/format";
 import type { SelfWorkoutLog } from "@/lib/types";
 
-// 회원/트레이너 화면이 함께 쓰는 자율 운동 기록 목록. renderActions로 삭제 버튼 등을 끼워 넣는다.
+// 회원/트레이너 화면이 함께 쓰는 개인 운동 기록 목록. renderActions로 삭제 버튼 등을 끼워 넣는다.
 export function SelfWorkoutList({
   logs,
   emptyText,

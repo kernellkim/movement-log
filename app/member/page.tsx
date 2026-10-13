@@ -217,7 +217,7 @@ export default async function MemberDashboard({
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">자율 운동 기록</h2>
+        <h2 className="text-lg font-semibold text-foreground">개인 운동 기록</h2>
         <Card>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -228,7 +228,7 @@ export default async function MemberDashboard({
               nativeButton={false}
               render={<Link href="/member/self-workout" />}
             >
-              자율 운동 기록하기
+              개인 운동 기록하기
             </Button>
           </CardContent>
         </Card>

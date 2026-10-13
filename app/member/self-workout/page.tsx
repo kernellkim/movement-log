@@ -56,7 +56,7 @@ export default async function SelfWorkoutPage() {
       </Button>
 
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">자율 운동 기록</h1>
+        <h1 className="text-2xl font-semibold text-foreground">개인 운동 기록</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           PT가 없는 날 혼자 한 운동을 남겨 두면 담당 트레이너도 확인할 수 있어요.
         </p>
@@ -72,7 +72,7 @@ export default async function SelfWorkoutPage() {
       ) : (
         <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {access.reason === "no_questionnaire"
-            ? "문진표를 먼저 작성해야 자율 운동을 기록할 수 있어요."
+            ? "문진표를 먼저 작성해야 개인 운동을 기록할 수 있어요."
             : "건강 상태상 의료진 상담이 먼저 필요해요. 담당 트레이너와 상담한 뒤 이용해 주세요."}
         </p>
       )}
@@ -81,7 +81,7 @@ export default async function SelfWorkoutPage() {
         <h2 className="text-lg font-semibold text-foreground">내가 기록한 운동</h2>
         <SelfWorkoutList
           logs={logs ?? []}
-          emptyText="아직 기록한 자율 운동이 없어요."
+          emptyText="아직 기록한 개인 운동이 없어요."
           renderActions={(log) => (
             <DeleteSelfWorkoutButton logId={log.id} dateLabel={log.workout_date} />
           )}

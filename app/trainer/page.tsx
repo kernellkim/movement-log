@@ -122,7 +122,7 @@ export default async function TrainerDashboard({
         }),
   ]);
 
-  // 자율 운동 요약: 가장 최근 날짜와 최근 7일(오늘 포함) 기록 횟수
+  // 개인 운동 요약: 가장 최근 날짜와 최근 7일(오늘 포함) 기록 횟수
   const weekStart = new Date(`${todayKst()}T00:00:00+09:00`);
   weekStart.setDate(weekStart.getDate() - 6);
   const weekStartStr = new Intl.DateTimeFormat("sv-SE", {

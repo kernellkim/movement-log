@@ -1,8 +1,8 @@
 import { needsWeightInput } from "@/lib/format";
 import type { Exercise, RiskLevel } from "@/lib/types";
 
-// 자율 운동 기록 규칙 - 루틴 생성(lib/routine-generate.ts)과 같은 안전 기준을 따른다.
-// - 문진표가 없거나 위험도가 높음이면 자율 기록을 열지 않는다(트레이너 상담이 먼저).
+// 개인 운동 기록 규칙 - 루틴 생성(lib/routine-generate.ts)과 같은 안전 기준을 따른다.
+// - 문진표가 없거나 위험도가 높음이면 개인 기록을 열지 않는다(트레이너 상담이 먼저).
 // - 위험도가 낮음(low)이 아니면 무게 장비와 고충격 운동은 고를 수 없다.
 export type SelfWorkoutAccess =
   | { allowed: true; weighted: boolean }

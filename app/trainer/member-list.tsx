@@ -169,7 +169,7 @@ export function MemberList({ members }: { members: MemberRow[] }) {
               </p>
               {member.joined && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  자율 운동: {member.selfWorkoutLabel ?? "기록 없음"}
+                  개인 운동: {member.selfWorkoutLabel ?? "기록 없음"}
                 </p>
               )}
               {member.deletionRequestedLabel && (
@@ -252,7 +252,7 @@ export function MemberList({ members }: { members: MemberRow[] }) {
                       />
                     }
                   >
-                    자율 운동
+                    개인 운동
                   </Button>
                 </>
               )}
