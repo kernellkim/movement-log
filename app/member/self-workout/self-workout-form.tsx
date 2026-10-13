@@ -418,7 +418,7 @@ export function SelfWorkoutForm({
                 size="sm"
                 onClick={() => setStep("choose")}
               >
-                시작 방식 바꾸기
+                ← 뒤로
               </Button>
             </div>
             <div className="space-y-1.5">
