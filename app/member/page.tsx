@@ -114,21 +114,6 @@ export default async function MemberDashboard({
       <Card>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            PT 없는 날 혼자 한 운동을 기록하고, 담당 트레이너와 공유해보세요
-          </p>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/member/self-workout" />}
-          >
-            자율 운동 기록하기
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
             최근 인바디 기록을 확인하고 추이를 확인해보세요
           </p>
           <Button
@@ -229,6 +214,24 @@ export default async function MemberDashboard({
             </Card>
           ))
         )}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">자율 운동 기록</h2>
+        <Card>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              PT 없는 날 혼자 한 운동을 기록하고, 담당 트레이너와 공유해보세요.
+            </p>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/member/self-workout" />}
+            >
+              자율 운동 기록하기
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <DeletionRequestCard
