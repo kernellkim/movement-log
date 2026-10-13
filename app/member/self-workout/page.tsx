@@ -143,6 +143,7 @@ export default async function SelfWorkoutPage() {
         <SelfWorkoutForm
           exercises={exercises}
           templates={templates}
+          highRisk={access.highRisk}
           today={todayKst()}
         />
       ) : (

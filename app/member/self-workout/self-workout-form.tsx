@@ -38,10 +38,12 @@ export type SessionTemplate = {
 export function SelfWorkoutForm({
   exercises,
   templates,
+  highRisk,
   today,
 }: {
   exercises: Exercise[];
   templates: SessionTemplate[];
+  highRisk: boolean;
   today: string;
 }) {
   const router = useRouter();
@@ -54,9 +56,14 @@ export function SelfWorkoutForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   // 시작 방식: 먼저 "지난 수업 루틴 불러오기"와 "새로 만들기" 중 고른다.
-  const [step, setStep] = useState<"choose" | "pick-session" | "edit">(
+  const [step, setStep] = useState<"choose" | "pick-session" | "ai" | "edit">(
     "choose",
   );
+  // AI 제안으로 시작한 기록이면 저장할 때 표시를 남긴다(트레이너 화면에 "AI 제안으로 시작"으로 보임).
+  const [aiSuggested, setAiSuggested] = useState(false);
+  const [aiCategories, setAiCategories] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [loadedNotice, setLoadedNotice] = useState<string | null>(null);
 
   const categories = useMemo(
@@ -68,6 +75,8 @@ export function SelfWorkoutForm({
     ],
     [exercises],
   );
+
+  const aiCategoryOptions = categories.filter((c) => c !== "전체");
 
   // 검색어를 입력하지 않아도 카테고리별로 훑어볼 수 있게 항상 목록을 보여준다.
   const matches = useMemo(() => {
@@ -110,12 +119,69 @@ export function SelfWorkoutForm({
         ? `내 건강 상태에 맞지 않는 운동 ${template.excluded}개는 제외하고 불러왔어요.`
         : null,
     );
+    setAiSuggested(false);
     setSaved(false);
     setStep("edit");
   }
 
+  async function requestAiSuggestion() {
+    setAiError(null);
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/member/self-workout-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories: aiCategories }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAiError(result.error ?? "AI 제안을 받지 못했어요.");
+        return;
+      }
+      const byId = new Map(exercises.map((e) => [e.id, e]));
+      const drafted = (
+        result.items as {
+          exerciseId: string;
+          sets: number;
+          reps: number | null;
+          durationSeconds: number | null;
+        }[]
+      ).flatMap((t, index) => {
+        const exercise = byId.get(t.exerciseId);
+        if (!exercise) return [];
+        const isDuration = exercise.unit_type === "duration";
+        const amount = isDuration ? t.durationSeconds : t.reps;
+        return [
+          {
+            key: `${exercise.id}-ai-${Date.now()}-${index}`,
+            exercise,
+            sets: String(t.sets),
+            reps: amount != null ? String(amount) : "",
+            weight: "",
+          },
+        ];
+      });
+      if (drafted.length === 0) {
+        setAiError("제안된 운동을 불러오지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+      setItems(drafted);
+      setLoadedNotice(
+        `AI 제안이에요. 트레이너 확인 전 참고용이니 몸 상태에 맞게 고쳐서 쓰고, 불편하면 바로 멈추세요. ${result.reasoning ?? ""}`,
+      );
+      setAiSuggested(true);
+      setSaved(false);
+      setStep("edit");
+    } catch {
+      setAiError("AI 제안을 받지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   function startFresh() {
     setItems([]);
+    setAiSuggested(false);
     setLoadedNotice(null);
     setSaved(false);
     setStep("edit");
@@ -149,6 +215,7 @@ export function SelfWorkoutForm({
       const result = await saveSelfWorkout({
         date,
         memo,
+        aiSuggested,
         items: items.map((i) => ({
           exerciseId: i.exercise.id,
           sets: toNumber(i.sets),
@@ -166,6 +233,7 @@ export function SelfWorkoutForm({
       }
       setItems([]);
       setMemo("");
+      setAiSuggested(false);
       setSaved(true);
       router.refresh();
     });
@@ -195,14 +263,82 @@ export function SelfWorkoutForm({
                 불러올 수 있는 지난 수업 기록이 아직 없어요.
               </p>
             )}
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              onClick={startFresh}
-            >
-              새로 만들기
-            </Button>
+            {highRisk ? (
+              <p className="text-xs text-muted-foreground">
+                건강 상태상 지난 수업에서 해 본 운동만 기록할 수 있어요.
+              </p>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => setStep("ai")}
+                >
+                  AI 루틴 제안받기
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full"
+                  onClick={startFresh}
+                >
+                  직접 만들기
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
+        {step === "ai" && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              오늘 하고 싶은 부위를 골라 주세요. 내 문진·검사·인바디를 반영해
+              안전한 운동으로 제안해 드려요. 트레이너 확인 전 참고용이에요.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {aiCategoryOptions.map((c) => (
+                <Button
+                  key={c}
+                  type="button"
+                  size="sm"
+                  variant={aiCategories.includes(c) ? "default" : "outline"}
+                  onClick={() =>
+                    setAiCategories((prev) =>
+                      prev.includes(c)
+                        ? prev.filter((x) => x !== c)
+                        : [...prev, c],
+                    )
+                  }
+                >
+                  {c}
+                </Button>
+              ))}
+            </div>
+            {aiError && (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {aiError}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setStep("choose")}
+              >
+                ← 뒤로
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                disabled={aiLoading || aiCategories.length === 0}
+                onClick={requestAiSuggestion}
+              >
+                {aiLoading ? "AI가 구성 중... (몇 초 걸려요)" : "제안받기"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -250,7 +386,10 @@ export function SelfWorkoutForm({
           <>
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                {loadedNotice ?? "운동을 직접 골라 기록해요."}
+                {loadedNotice ??
+                  (highRisk
+                    ? "불러온 운동의 세트·횟수를 고쳐서 기록해요."
+                    : "운동을 직접 골라 기록해요.")}
               </p>
               <Button
                 type="button"
@@ -272,59 +411,61 @@ export function SelfWorkoutForm({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="exercise-search">① 운동 고르기</Label>
-              <Input
-                id="exercise-search"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="운동 이름 검색 (예: 데드버그)"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {categories.map((c) => (
-                  <Button
-                    key={c}
-                    type="button"
-                    size="sm"
-                    variant={category === c ? "default" : "outline"}
-                    onClick={() => setCategory(c)}
-                  >
-                    {c}
-                  </Button>
-                ))}
-              </div>
-              <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border">
-                {matches.length === 0 ? (
-                  <li className="px-3 py-2 text-sm text-muted-foreground">
-                    조건에 맞는 운동이 없어요. 내 건강 상태에 맞는 안전한 운동만
-                    보여드려요.
-                  </li>
-                ) : (
-                  matches.map((e) => (
-                    <li
-                      key={e.id}
-                      className="flex items-center justify-between gap-2 px-3 py-2"
+            {!highRisk && (
+              <div className="space-y-2">
+                <Label htmlFor="exercise-search">① 운동 고르기</Label>
+                <Input
+                  id="exercise-search"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="운동 이름 검색 (예: 데드버그)"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {categories.map((c) => (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant={category === c ? "default" : "outline"}
+                      onClick={() => setCategory(c)}
                     >
-                      <span className="text-sm text-foreground">
-                        {e.name_ko ?? e.name_en}
-                        <span className="ml-1.5 text-xs text-muted-foreground">
-                          {e.category ?? ""}
-                        </span>
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => addExercise(e)}
-                      >
-                        추가
-                      </Button>
+                      {c}
+                    </Button>
+                  ))}
+                </div>
+                <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+                  {matches.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-muted-foreground">
+                      조건에 맞는 운동이 없어요. 내 건강 상태에 맞는 안전한
+                      운동만 보여드려요.
                     </li>
-                  ))
-                )}
-              </ul>
-            </div>
+                  ) : (
+                    matches.map((e) => (
+                      <li
+                        key={e.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2"
+                      >
+                        <span className="text-sm text-foreground">
+                          {e.name_ko ?? e.name_en}
+                          <span className="ml-1.5 text-xs text-muted-foreground">
+                            {e.category ?? ""}
+                          </span>
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => addExercise(e)}
+                        >
+                          추가
+                        </Button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            )}
 
             {items.length > 0 && (
               <div className="space-y-2">

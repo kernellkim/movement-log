@@ -5,6 +5,8 @@ import type { Exercise, RiskLevel } from "@/lib/types";
 // - 문진표가 없으면 위험도를 알 수 없어 개인 기록을 열지 않는다.
 // - 위험도가 낮음(low)이 아니면(높음 포함) 무게 장비와 고충격 운동은 고를 수 없고,
 //   맨몸·밴드 중심의 안전한 운동만 기록할 수 있다.
+// - 위험도가 높음이면 새 운동을 고르거나 AI 제안을 받을 수 없고, 지난 수업에서 한 운동만
+//   불러와 기록할 수 있다(highRisk).
 export type SelfWorkoutAccess =
   | { allowed: true; weighted: boolean; highRisk: boolean }
   | { allowed: false; reason: "no_questionnaire" };

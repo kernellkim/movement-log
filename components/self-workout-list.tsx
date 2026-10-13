@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { formatSetsReps } from "@/lib/format";
 import type { SelfWorkoutLog } from "@/lib/types";
 
@@ -32,7 +33,14 @@ export function SelfWorkoutList({
           <Card key={log.id}>
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
-                <CardTitle>{log.workout_date}</CardTitle>
+                <CardTitle>
+                  {log.workout_date}
+                  {log.ai_suggested && (
+                    <Badge variant="outline" className="ml-2 align-middle">
+                      AI 제안으로 시작
+                    </Badge>
+                  )}
+                </CardTitle>
                 {renderActions?.(log)}
               </div>
             </CardHeader>
@@ -43,7 +51,12 @@ export function SelfWorkoutList({
                     {item.exercise_name}
                     {(item.reps != null || item.duration_seconds != null) && (
                       <span className="ml-1.5 text-muted-foreground">
-                        {formatSetsReps(item.sets, item.reps, item.duration_seconds, item.weight_kg)}
+                        {formatSetsReps(
+                          item.sets,
+                          item.reps,
+                          item.duration_seconds,
+                          item.weight_kg,
+                        )}
                       </span>
                     )}
                   </li>

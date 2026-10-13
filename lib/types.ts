@@ -155,6 +155,7 @@ export type SelfWorkoutLog = {
   member_id: string;
   workout_date: string;
   memo: string | null;
+  ai_suggested: boolean;
   created_at: string;
   self_workout_items?: SelfWorkoutItem[];
 };
