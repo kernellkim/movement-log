@@ -18,13 +18,25 @@ export async function GET(request: Request) {
 
   if (token_hash && type) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash });
+    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const response = NextResponse.redirect(`${origin}${next}`);
+      // 링크로 로그인된 계정 id를 짧게 기억해 둔다. /auth/set-password는 이 쿠키가
+      // 현재 로그인 계정과 일치할 때만 열린다 (다른 계정의 비밀번호가 바뀌는 사고 방지).
+      if (data.user) {
+        response.cookies.set("pw_setup", data.user.id, {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          maxAge: 60 * 10,
+          path: "/auth",
+        });
+      }
+      return response;
     }
   }
 
   return NextResponse.redirect(
-    `${origin}/auth/set-password?error=invalid_link`,
+    `${origin}/login?error=${encodeURIComponent("초대 링크가 유효하지 않거나 만료되었습니다. 트레이너에게 다시 요청해 주세요.")}`,
   );
 }

@@ -18,7 +18,9 @@ export default async function AuthConfirmPage({
   const { token_hash, type, next } = await searchParams;
 
   if (!token_hash || !type) {
-    redirect("/auth/set-password?error=invalid_link");
+    redirect(
+      `/login?error=${encodeURIComponent("초대 링크가 유효하지 않거나 만료되었습니다. 트레이너에게 다시 요청해 주세요.")}`,
+    );
   }
 
   const verifyUrl = `/auth/confirm/verify?token_hash=${encodeURIComponent(token_hash)}&type=${encodeURIComponent(type)}&next=${encodeURIComponent(next ?? "/")}`;
