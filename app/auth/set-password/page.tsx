@@ -13,6 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { TermsPrivacyConsentField } from "@/components/consent/consent-fields";
+import { recordConsents } from "@/lib/consent";
 
 export default function SetPasswordPage() {
   const router = useRouter();
@@ -49,10 +51,16 @@ export default function SetPasswordPage() {
       return;
     }
 
-    await supabase
+    const { data: member } = await supabase
       .from("members")
       .update({ password_set_at: new Date().toISOString() })
-      .eq("user_id", data.user.id);
+      .eq("user_id", data.user.id)
+      .select("id")
+      .maybeSingle();
+
+    // 가입 시점의 이용약관·개인정보 동의 기록. 실패해도 /member 게이트가
+    // 다시 동의를 받으므로 가입 자체는 막지 않는다.
+    if (member) await recordConsents(supabase, member.id, ["terms_privacy"]);
 
     router.push("/");
     router.refresh();
@@ -84,6 +92,7 @@ export default function SetPasswordPage() {
                   required
                 />
               </div>
+              <TermsPrivacyConsentField />
               <Button
                 type="submit"
                 size="lg"

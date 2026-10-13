@@ -126,3 +126,13 @@ export type SessionLogItem = {
   duration_seconds: number | null;
   weight_kg: number | null;
 };
+
+export type ConsentType = "terms_privacy" | "sensitive_health";
+
+export type ConsentRecord = {
+  id: string;
+  member_id: string;
+  consent_type: ConsentType;
+  version: string;
+  consented_at: string;
+};

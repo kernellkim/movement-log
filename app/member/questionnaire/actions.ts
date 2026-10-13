@@ -8,6 +8,7 @@ import { recommendAssessmentItems } from "@/lib/assessment-recommend";
 import { archiveActiveRoutines } from "@/lib/reassessment";
 import { formatHealthUpdatesForPrompt } from "@/lib/format";
 import { PARQ_QUESTIONS } from "@/lib/parq";
+import { CONSENT_FIELD, recordConsents } from "@/lib/consent";
 import type { HealthUpdate, ParqAnswer, Questionnaire } from "@/lib/types";
 
 export async function submitQuestionnaire(formData: FormData) {
@@ -19,6 +20,19 @@ export async function submitQuestionnaire(formData: FormData) {
 
   const member = await getMemberForUser(supabase, user.id);
   if (!member) redirect("/login");
+
+  // 민감정보(건강정보)는 별도 동의 없이는 저장하지 않는다.
+  if (formData.get(CONSENT_FIELD.sensitive_health) !== "on") {
+    redirect(
+      `/member/questionnaire?error=${encodeURIComponent("건강정보 수집·이용에 동의해야 문진표를 제출할 수 있습니다.")}`,
+    );
+  }
+  const { error: consentError } = await recordConsents(supabase, member.id, ["sensitive_health"]);
+  if (consentError) {
+    redirect(
+      `/member/questionnaire?error=${encodeURIComponent("동의 저장에 실패했습니다. 다시 시도해 주세요.")}`,
+    );
+  }
 
   const parqAnswers: ParqAnswer[] = PARQ_QUESTIONS.map((q) => ({
     id: q.id,

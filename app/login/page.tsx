@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signIn } from "./actions";
 
@@ -57,6 +58,16 @@ export default async function LoginPage({
         <p>회원: test2@test.com / test2</p>
         <p>회원: test3@test.com / test3</p>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        <Link href="/terms" className="underline underline-offset-2">
+          이용약관
+        </Link>
+        {" · "}
+        <Link href="/privacy" className="underline underline-offset-2">
+          개인정보처리방침
+        </Link>
+      </p>
     </div>
   );
 }
