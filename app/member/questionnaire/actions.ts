@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
-import { classifyRisk } from "@/lib/risk";
+import { classifyRisk, parqFloor } from "@/lib/risk";
+import { describeAiError } from "@/lib/ai-error";
 import { recommendAssessmentItems } from "@/lib/assessment-recommend";
 import { archiveActiveRoutines } from "@/lib/reassessment";
 import { formatHealthUpdatesForPrompt } from "@/lib/format";
@@ -81,30 +82,37 @@ export async function submitQuestionnaire(formData: FormData) {
   // 진행하도록 한다 - 안전을 위한 재검토 단계라 매번 무조건 실행한다.
   await archiveActiveRoutines(supabase, member.id);
 
-  const { riskLevel } = await classifyRisk({
-    parqAnswers,
-    injuryHistory,
-    surgeryHistory,
-    chronicCondition,
-  });
+  // AI 호출이 실패해도 회원 화면이 멈추지 않도록, 실패 시에는 PAR-Q 규칙 기준의
+  // 위험도(안전 하한선)로 저장하고 검사 추천은 트레이너가 화면에서 다시 요청하게 둔다.
+  let riskLevel = parqFloor(parqAnswers);
+  try {
+    riskLevel = (
+      await classifyRisk({ parqAnswers, injuryHistory, surgeryHistory, chronicCondition })
+    ).riskLevel;
+  } catch (e) {
+    describeAiError(e, "submitQuestionnaire:classifyRisk");
+  }
 
   await supabase
     .from("questionnaires")
     .update({ risk_level: riskLevel })
     .eq("id", inserted.id);
 
-  const recommended = await recommendAssessmentItems({
-    parqAnswers,
-    injuryHistory,
-    surgeryHistory,
-    chronicCondition,
-  });
-
-  await supabase.from("assessments").insert({
-    member_id: member.id,
-    questionnaire_id: inserted.id,
-    recommended_items: recommended,
-  });
+  try {
+    const recommended = await recommendAssessmentItems({
+      parqAnswers,
+      injuryHistory,
+      surgeryHistory,
+      chronicCondition,
+    });
+    await supabase.from("assessments").insert({
+      member_id: member.id,
+      questionnaire_id: inserted.id,
+      recommended_items: recommended,
+    });
+  } catch (e) {
+    describeAiError(e, "submitQuestionnaire:recommendAssessmentItems");
+  }
 
   redirect("/member");
 }
@@ -155,15 +163,21 @@ export async function submitHealthUpdate(formData: FormData) {
     .order("created_at", { ascending: true })
     .returns<HealthUpdate[]>();
 
-  const { riskLevel } = await classifyRisk({
-    parqAnswers: latest.parq_answers,
-    injuryHistory: latest.injury_history ?? "",
-    surgeryHistory: latest.surgery_history ?? "",
-    chronicCondition: latest.chronic_condition ?? "",
-    healthUpdatesText: formatHealthUpdatesForPrompt(healthUpdates ?? []),
-  });
-
-  await supabase.from("questionnaires").update({ risk_level: riskLevel }).eq("id", latest.id);
+  // AI 분류가 실패해도 제출은 이미 저장됐으므로 회원 화면은 그대로 넘어가야 한다.
+  // 이때는 기존 위험도를 유지하고(낮추지 않음), 루틴이 보관 처리돼 트레이너에게
+  // "재검토 필요"로 표시된다.
+  try {
+    const { riskLevel } = await classifyRisk({
+      parqAnswers: latest.parq_answers,
+      injuryHistory: latest.injury_history ?? "",
+      surgeryHistory: latest.surgery_history ?? "",
+      chronicCondition: latest.chronic_condition ?? "",
+      healthUpdatesText: formatHealthUpdatesForPrompt(healthUpdates ?? []),
+    });
+    await supabase.from("questionnaires").update({ risk_level: riskLevel }).eq("id", latest.id);
+  } catch (e) {
+    describeAiError(e, "submitHealthUpdate:classifyRisk");
+  }
 
   redirect("/member");
 }

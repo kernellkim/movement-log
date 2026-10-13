@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 
 // 같은 form 안의 필수 동의 체크박스가 모두 체크돼야 활성화되는 제출 버튼.
@@ -16,6 +17,7 @@ export function ConsentSubmitButton({
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [allChecked, setAllChecked] = useState(false);
+  const { pending } = useFormStatus();
 
   useEffect(() => {
     const form = ref.current?.closest("form");
@@ -37,9 +39,9 @@ export function ConsentSubmitButton({
       type="submit"
       size="lg"
       className={className}
-      disabled={disabled || !allChecked}
+      disabled={disabled || !allChecked || pending}
     >
-      {children}
+      {pending ? "처리 중..." : children}
     </Button>
   );
 }

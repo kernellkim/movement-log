@@ -3,9 +3,25 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getNextAssessmentStepUrl } from "@/lib/assessment-flow";
+import { getJoinedMemberForTrainer, NOT_JOINED_MESSAGE } from "@/lib/member-access";
+
+// 서버 액션은 화면 레이아웃을 거치지 않고 직접 호출될 수 있어서 여기서도 확인한다.
+async function requireJoinedMember(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  memberId: string,
+) {
+  const access = await getJoinedMemberForTrainer(supabase, memberId);
+  if (access.ok) return;
+  if (access.reason === "unauthenticated") redirect("/login");
+  if (access.reason === "not_joined") {
+    redirect(`/trainer?error=${encodeURIComponent(NOT_JOINED_MESSAGE)}`);
+  }
+  redirect("/trainer");
+}
 
 export async function saveBodyComposition(memberId: string, formData: FormData) {
   const supabase = await createClient();
+  await requireJoinedMember(supabase, memberId);
 
   const measuredAt = String(formData.get("measured_at") ?? "");
   const weightKg = Number(formData.get("weight_kg"));
@@ -48,6 +64,7 @@ export async function saveBodyComposition(memberId: string, formData: FormData) 
 
 export async function deleteBodyCompositionRecord(memberId: string, recordId: string) {
   const supabase = await createClient();
+  await requireJoinedMember(supabase, memberId);
   const { error } = await supabase
     .from("body_composition_records")
     .delete()

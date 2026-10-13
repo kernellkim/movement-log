@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { describeAiError } from "@/lib/ai-error";
 import { extractBodyComposition } from "@/lib/body-composition-extract";
 
 export const maxDuration = 60;
@@ -13,7 +14,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await extractBodyComposition({ imageBase64, mediaType });
+  let result;
+  try {
+    result = await extractBodyComposition({ imageBase64, mediaType });
+  } catch (e) {
+    const { message, status } = describeAiError(e, "extract-body-composition");
+    return NextResponse.json({ error: message }, { status });
+  }
 
   if (
     !result ||

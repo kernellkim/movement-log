@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getJoinedMemberForTrainer, NOT_JOINED_MESSAGE } from "@/lib/member-access";
+import { describeAiError } from "@/lib/ai-error";
 import { generateRoutine } from "@/lib/routine-generate";
 import { formatHealthUpdatesForPrompt } from "@/lib/format";
 import type {
@@ -20,6 +22,14 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
+
+  const access = await getJoinedMemberForTrainer(supabase, memberId);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.reason === "not_joined" ? NOT_JOINED_MESSAGE : "접근 권한이 없습니다." },
+      { status: access.reason === "unauthenticated" ? 401 : access.reason === "not_joined" ? 403 : 404 },
+    );
+  }
 
   const { data: questionnaire, error: qError } = await supabase
     .from("questionnaires")
@@ -65,14 +75,20 @@ export async function POST(request: Request) {
     .order("created_at", { ascending: true })
     .returns<HealthUpdate[]>();
 
-  const draft = await generateRoutine({
-    questionnaire,
-    assessmentResults: assessmentResults ?? [],
-    bodyComposition: bodyComposition ?? null,
-    categories,
-    candidates: candidates ?? [],
-    healthUpdatesText: formatHealthUpdatesForPrompt(healthUpdates ?? []),
-  });
+  let draft;
+  try {
+    draft = await generateRoutine({
+      questionnaire,
+      assessmentResults: assessmentResults ?? [],
+      bodyComposition: bodyComposition ?? null,
+      categories,
+      candidates: candidates ?? [],
+      healthUpdatesText: formatHealthUpdatesForPrompt(healthUpdates ?? []),
+    });
+  } catch (e) {
+    const { message, status } = describeAiError(e, "generate-routine");
+    return NextResponse.json({ error: message }, { status });
+  }
 
   const candidateById = new Map((candidates ?? []).map((c) => [c.id, c]));
 

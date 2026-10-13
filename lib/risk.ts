@@ -13,7 +13,7 @@ const RISK_ORDER: Record<RiskLevel, number> = { low: 0, mid: 1, high: 2 };
 
 // PAR-Q 규칙상 최소 위험도: 하나라도 "예"면 mid, 심장질환/흉통 관련 항목이 "예"면 high.
 // 안전 관련 로직이므로 프롬프트 지시뿐 아니라 서버에서도 하한선을 강제한다.
-function parqFloor(answers: ParqAnswer[]): RiskLevel {
+export function parqFloor(answers: ParqAnswer[]): RiskLevel {
   const yes = answers.filter((a) => a.answer);
   if (yes.length === 0) return "low";
   const cardiacYes = yes.some(

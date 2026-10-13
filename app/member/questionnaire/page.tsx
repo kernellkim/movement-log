@@ -16,6 +16,7 @@ import { getMemberForUser } from "@/lib/auth";
 import { hasConsent } from "@/lib/consent";
 import { PARQ_QUESTIONS } from "@/lib/parq";
 import type { Questionnaire } from "@/lib/types";
+import { SubmitButton } from "@/components/submit-button";
 import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
 import { SensitiveHealthConsentField } from "@/components/consent/consent-fields";
 import { BirthDatePicker } from "./birth-date-picker";
@@ -88,9 +89,9 @@ export default async function QuestionnairePage({
             </CardContent>
           </Card>
 
-          <Button type="submit" size="lg" className="w-full">
+          <SubmitButton className="w-full" pendingLabel="제출 중... (잠시만 기다려 주세요)">
             제출
-          </Button>
+          </SubmitButton>
         </form>
       </div>
     );
