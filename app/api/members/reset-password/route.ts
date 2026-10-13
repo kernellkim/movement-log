@@ -46,10 +46,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "회원 계정을 찾을 수 없습니다." }, { status: 404 });
   }
 
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+  // 이미 가입한 회원은 recovery 링크, 아직 초대 수락 전(이메일 미확인)인 회원은
+  // recovery가 거부될 수 있어 magiclink로 한 번 더 시도한다.
+  let linkType: "recovery" | "magiclink" = "recovery";
+  let { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
   });
+  if (linkError || !linkData?.properties?.hashed_token) {
+    linkType = "magiclink";
+    ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    }));
+  }
   if (linkError || !linkData?.properties?.hashed_token) {
     return NextResponse.json(
       { error: linkError?.message ?? "링크 발급에 실패했습니다." },
@@ -59,7 +69,7 @@ export async function POST(request: Request) {
 
   const origin = new URL(request.url).origin;
   const next = encodeURIComponent("/auth/set-password?mode=reset");
-  const resetUrl = `${origin}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=recovery&next=${next}`;
+  const resetUrl = `${origin}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=${linkType}&next=${next}`;
 
   return NextResponse.json({ resetUrl });
 }

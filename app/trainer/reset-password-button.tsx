@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 export function ResetPasswordButton({
   memberId,
   memberName,
+  joined,
 }: {
   memberId: string;
   memberName: string;
+  joined: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -42,14 +44,14 @@ export function ResetPasswordButton({
   return (
     <>
       <Button type="button" variant="outline" size="sm" onClick={issue}>
-        비밀번호 재설정
+        {joined ? "비밀번호 재설정" : "초대 링크 재발급"}
       </Button>
       <dialog
         ref={dialogRef}
         className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl bg-card p-5 text-card-foreground ring-1 ring-foreground/10 backdrop:bg-black/60"
       >
         <div className="space-y-4">
-          <h2 className="text-base font-semibold">{memberName}님 비밀번호 재설정</h2>
+          <h2 className="text-base font-semibold">{memberName}님 {joined ? "비밀번호 재설정" : "초대 링크 재발급"}</h2>
 
           {loading && <p className="text-sm text-muted-foreground">링크 생성 중...</p>}
 

@@ -30,20 +30,20 @@ export default async function AuthConfirmPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 이미 로그인된 세션이 없는 일반적인 경우(초대받은 회원이 링크를 처음 여는
-  // 경로)는 확인 절차 없이 곧장 검증 라우트로 넘긴다.
-  if (!user) {
-    redirect(verifyUrl);
-  }
-
+  // 링크를 열자마자 자동으로 검증하지 않고 항상 버튼을 한 번 눌러야 진행한다.
+  // 카카오톡·메신저 등의 링크 미리보기나 보안 스캐너가 링크를 먼저 열어 일회용
+  // 토큰을 소모해 버리는 문제를 막기 위해서다 (자동 접속은 버튼을 누르지 않는다).
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">계정 전환 확인</CardTitle>
+          <CardTitle className="text-xl font-semibold">
+            {user ? "계정 전환 확인" : "Movement.log"}
+          </CardTitle>
           <CardDescription>
-            현재 다른 계정으로 로그인되어 있습니다. 이 링크를 계속 진행하면
-            초대받은 계정으로 전환됩니다.
+            {user
+              ? "현재 다른 계정으로 로그인되어 있습니다. 이 링크를 계속 진행하면 링크의 계정으로 전환됩니다."
+              : "아래 버튼을 눌러 비밀번호 설정을 계속해 주세요."}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -250,12 +250,11 @@ export default async function TrainerDashboard({
                 >
                   인바디
                 </Button>
-                {joined && (
-                  <ResetPasswordButton
-                    memberId={member.id}
-                    memberName={member.name ?? "회원"}
-                  />
-                )}
+                <ResetPasswordButton
+                  memberId={member.id}
+                  memberName={member.name ?? "회원"}
+                  joined={Boolean(joined)}
+                />
                 <DeleteMemberButton memberId={member.id} />
               </div>
             </Card>
