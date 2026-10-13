@@ -47,6 +47,14 @@ truth for decisions): page ID `3cc42b8c3bc181bba32ae02c9858e178`.
      (equal 2-column buttons, cancel + confirm); width `max-w-lg`; backdrop `black/70`.
    - Do not hand-roll new `<dialog>` markup or change these styles per-popup; extend the
      shared components if something is missing.
+7. **Keep the codebase and the Notion spec consistent, always.**
+   - Terminology: the member-side feature is **"개인 운동"** (never "자율 운동"). Use the same
+     wording in UI text, code comments, README and Notion.
+   - Any user-visible behavior, schema, API, or rule change must be reflected in the Notion
+     page (3.1 features, 3.2 decisions, 3.4 schema history, 5 dev log) in the same task,
+     and the Notion text must match what the code and DB actually do (verify against the DB
+     for table/column facts instead of relying on memory).
+   - When something is removed (feature, table, column), remove it from the Notion text too.
 
 ## Known patterns / gotchas
 - Next.js 16 renamed `middleware.ts` → `proxy.ts`.
