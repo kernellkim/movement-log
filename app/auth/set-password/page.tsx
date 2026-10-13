@@ -93,7 +93,7 @@ export default function SetPasswordPage() {
                   id="password"
                   type="password"
                   name="password"
-                  minLength={8}
+                  minLength={6}
                   required
                 />
               </div>
