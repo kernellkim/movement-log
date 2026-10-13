@@ -29,7 +29,9 @@ function inRange(n: number | null, min: number, max: number): boolean {
   return n === null || (Number.isFinite(n) && n >= min && n <= max);
 }
 
-export async function saveSelfWorkout(payload: SelfWorkoutPayload): Promise<Result> {
+export async function saveSelfWorkout(
+  payload: SelfWorkoutPayload,
+): Promise<Result> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -45,12 +47,21 @@ export async function saveSelfWorkout(payload: SelfWorkoutPayload): Promise<Resu
     .eq("member_id", member.id)
     .eq("is_latest", true)
     .maybeSingle<Pick<Questionnaire, "risk_level">>();
-  const access = getSelfWorkoutAccess(questionnaire?.risk_level, Boolean(questionnaire));
-  if (!access.allowed) return { error: "지금은 개인 운동을 기록할 수 없습니다. 담당 트레이너와 상담해 주세요." };
+  const access = getSelfWorkoutAccess(
+    questionnaire?.risk_level,
+    Boolean(questionnaire),
+  );
+  if (!access.allowed)
+    return {
+      error:
+        "지금은 개인 운동을 기록할 수 없습니다. 담당 트레이너와 상담해 주세요.",
+    };
 
   const today = todayKst();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.date) || payload.date > today) {
-    return { error: "운동 날짜를 확인해 주세요. 오늘 이후 날짜는 기록할 수 없어요." };
+    return {
+      error: "운동 날짜를 확인해 주세요. 오늘 이후 날짜는 기록할 수 없어요.",
+    };
   }
   if (payload.items.length < 1 || payload.items.length > 30) {
     return { error: "운동을 1개 이상 추가해 주세요." };
@@ -64,7 +75,10 @@ export async function saveSelfWorkout(payload: SelfWorkoutPayload): Promise<Resu
     .in("id", ids)
     .returns<Exercise[]>();
   const allowedById = new Map(
-    filterExercisesForSelfWorkout(exercises ?? [], access.weighted).map((e) => [e.id, e]),
+    filterExercisesForSelfWorkout(exercises ?? [], access.weighted).map((e) => [
+      e.id,
+      e,
+    ]),
   );
 
   const rows = [];
@@ -82,7 +96,9 @@ export async function saveSelfWorkout(payload: SelfWorkoutPayload): Promise<Resu
       return { error: `${name}의 세트·횟수·무게 값을 확인해 주세요.` };
     }
     if (isDuration ? item.durationSeconds === null : item.reps === null) {
-      return { error: `${name}의 ${isDuration ? "유지 시간" : "횟수"}을 입력해 주세요.` };
+      return {
+        error: `${name}의 ${isDuration ? "유지 시간" : "횟수"}을 입력해 주세요.`,
+      };
     }
     rows.push({
       exercise_id: exercise.id,
@@ -97,10 +113,15 @@ export async function saveSelfWorkout(payload: SelfWorkoutPayload): Promise<Resu
 
   const { data: log, error: logError } = await supabase
     .from("self_workout_logs")
-    .insert({ member_id: member.id, workout_date: payload.date, memo: memo || null })
+    .insert({
+      member_id: member.id,
+      workout_date: payload.date,
+      memo: memo || null,
+    })
     .select("id")
     .single();
-  if (logError || !log) return { error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+  if (logError || !log)
+    return { error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
 
   const { error: itemsError } = await supabase
     .from("self_workout_items")

@@ -4,7 +4,13 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ModalDanger } from "@/components/ui/modal";
 import { deleteSelfWorkout } from "./actions";
 
-export function DeleteSelfWorkoutButton({ logId, dateLabel }: { logId: string; dateLabel: string }) {
+export function DeleteSelfWorkoutButton({
+  logId,
+  dateLabel,
+}: {
+  logId: string;
+  dateLabel: string;
+}) {
   return (
     <ConfirmDialog
       triggerLabel="삭제"
