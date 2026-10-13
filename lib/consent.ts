@@ -11,29 +11,21 @@ export const CONSENT_FIELD = {
 } as const satisfies Record<ConsentType, string>;
 
 // 이 회원이 아직 현재 버전으로 동의하지 않은 항목을 돌려준다.
-// - terms_privacy: 모든 회원 필수
-// - sensitive_health: 건강정보(문진표)를 이미 제출한 회원만 필수.
-//   아직 문진표가 없는 회원은 문진표 작성 화면에서 동의를 받는다.
+// 일반 동의(terms_privacy)와 건강정보 동의(sensitive_health)는 둘 다 필수이며,
+// 서로 다른 체크박스로 한 화면에서 함께 받는다.
 export async function getMissingConsents(
   supabase: SupabaseClient,
   memberId: string,
 ): Promise<ConsentType[]> {
-  const [{ data: records }, { data: questionnaires }] = await Promise.all([
-    supabase
-      .from("consent_records")
-      .select("consent_type")
-      .eq("member_id", memberId)
-      .eq("version", CONSENT_VERSION),
-    supabase.from("questionnaires").select("id").eq("member_id", memberId).limit(1),
-  ]);
+  const { data: records } = await supabase
+    .from("consent_records")
+    .select("consent_type")
+    .eq("member_id", memberId)
+    .eq("version", CONSENT_VERSION);
 
   const given = new Set((records ?? []).map((r) => r.consent_type as ConsentType));
-  const missing: ConsentType[] = [];
-  if (!given.has("terms_privacy")) missing.push("terms_privacy");
-  if ((questionnaires?.length ?? 0) > 0 && !given.has("sensitive_health")) {
-    missing.push("sensitive_health");
-  }
-  return missing;
+  const required: ConsentType[] = ["terms_privacy", "sensitive_health"];
+  return required.filter((type) => !given.has(type));
 }
 
 export async function recordConsents(
