@@ -80,6 +80,8 @@ export function SelfWorkoutForm({
     recommendedCategories,
   );
   const [recommendError, setRecommendError] = useState<string | null>(null);
+  // 운동 고르기 목록은 "직접 만들기"일 때만 보여준다(불러오기·추천 구성은 이미 운동이 채워져 있음).
+  const [canPick, setCanPick] = useState(false);
   const [loadedNotice, setLoadedNotice] = useState<string | null>(null);
 
   const categories = useMemo(
@@ -135,6 +137,7 @@ export function SelfWorkoutForm({
         ? `내 건강 상태에 맞지 않는 운동 ${template.excluded}개는 제외하고 불러왔어요.`
         : null,
     );
+    setCanPick(false);
     setSaved(false);
     setStep("edit");
   }
@@ -189,11 +192,13 @@ export function SelfWorkoutForm({
     setLoadedNotice(
       `${pickedCategories.join("·")} 추천 구성이에요. 트레이너와 함께 한 마지막 수업 기준이고, 3세트 이상이던 운동은 한 세트씩 줄였어요. 몸 상태에 맞게 고쳐서 쓰세요.`,
     );
+    setCanPick(false);
     setSaved(false);
     setStep("edit");
   }
 
   function startFresh() {
+    setCanPick(true);
     setItems([]);
     setLoadedNotice(null);
     setSaved(false);
@@ -427,7 +432,7 @@ export function SelfWorkoutForm({
               />
             </div>
 
-            {exercises.length > 0 && (
+            {canPick && (
               <div className="space-y-2">
                 <Label htmlFor="exercise-search">① 운동 고르기</Label>
                 <Input
@@ -486,7 +491,7 @@ export function SelfWorkoutForm({
             {items.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">
-                  ② 세트·횟수 입력
+                  {canPick ? "② 세트·횟수 입력" : "세트·횟수 확인·수정"}
                 </p>
                 <ul className="space-y-3">
                   {items.map((item) => {
@@ -605,7 +610,9 @@ export function SelfWorkoutForm({
                 ? "저장 중..."
                 : items.length === 0
                   ? "운동을 추가하면 저장할 수 있어요"
-                  : "③ 기록 저장"}
+                  : canPick
+                    ? "③ 기록 저장"
+                    : "기록 저장"}
             </Button>
           </>
         )}
