@@ -58,7 +58,7 @@ export default async function MemberDashboard({
         </h1>
         <div className="flex items-center gap-2">
           <RefreshButton />
-          <form action={signOut}>
+          <form action={signOut} className="flex">
             <Button type="submit" variant="outline" size="sm">
               로그아웃
             </Button>

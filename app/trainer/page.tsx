@@ -227,7 +227,7 @@ export default async function TrainerDashboard({
           >
             새 회원 추가
           </Button>
-          <form action={signOut}>
+          <form action={signOut} className="flex">
             <Button type="submit" variant="outline" size="sm">
               로그아웃
             </Button>
