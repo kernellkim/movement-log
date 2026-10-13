@@ -48,6 +48,11 @@ export default async function MemberDashboard({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">
           안녕하세요, {member.name ?? "회원"}님
+          {user.email && (
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              ({user.email})
+            </span>
+          )}
         </h1>
         <div className="flex items-center gap-2">
           <form action={signOut}>

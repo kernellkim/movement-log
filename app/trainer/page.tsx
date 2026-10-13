@@ -10,6 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import type { Member, Questionnaire, Routine } from "@/lib/types";
 import { SessionCompletedDialog } from "./session-completed-dialog";
 import { DeleteMemberButton } from "./delete-member-button";
+import { ResetPasswordButton } from "./reset-password-button";
 
 const RISK_LABEL: Record<string, string> = {
   low: "낮음",
@@ -249,6 +250,12 @@ export default async function TrainerDashboard({
                 >
                   인바디
                 </Button>
+                {joined && (
+                  <ResetPasswordButton
+                    memberId={member.id}
+                    memberName={member.name ?? "회원"}
+                  />
+                )}
                 <DeleteMemberButton memberId={member.id} />
               </div>
             </Card>

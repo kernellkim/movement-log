@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { ConsentSubmitButton } from "@/components/consent/consent-submit-button";
 import {
   SensitiveHealthConsentField,
@@ -24,8 +25,11 @@ export default function SetPasswordPage() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 트레이너가 발급한 비밀번호 재설정 링크로 들어온 경우 (?mode=reset)
+  const [isReset, setIsReset] = useState(false);
 
   useEffect(() => {
+    setIsReset(new URLSearchParams(window.location.search).get("mode") === "reset");
     const supabase = createClient();
     // 초대 링크의 세션 토큰은 URL 해시로 전달되어 supabase-js가 마운트 시 자동으로 읽어들인다.
     supabase.auth.getSession().then(({ data }) => {
@@ -63,7 +67,8 @@ export default function SetPasswordPage() {
 
     // 가입 시점의 이용약관·개인정보 동의 기록. 실패해도 /member 게이트가
     // 다시 동의를 받으므로 가입 자체는 막지 않는다.
-    if (member) {
+    // 재설정 모드에서는 동의를 다시 받지 않는다 (필요하면 /member 게이트가 처리).
+    if (member && !isReset) {
       await recordConsents(supabase, member.id, ["terms_privacy", "sensitive_health"]);
     }
 
@@ -75,9 +80,13 @@ export default function SetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">비밀번호 설정</CardTitle>
+          <CardTitle className="text-xl font-semibold">
+            {isReset ? "새 비밀번호 설정" : "비밀번호 설정"}
+          </CardTitle>
           <CardDescription>
-            Movement.log에서 사용할 비밀번호를 설정해 주세요.
+            {isReset
+              ? "새로 사용할 비밀번호를 입력해 주세요."
+              : "Movement.log에서 사용할 비밀번호를 설정해 주세요."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,11 +106,19 @@ export default function SetPasswordPage() {
                   required
                 />
               </div>
-              <TermsPrivacyConsentField />
-              <SensitiveHealthConsentField />
-              <ConsentSubmitButton className="w-full" disabled={submitting}>
-                {submitting ? "설정 중..." : "설정 완료"}
-              </ConsentSubmitButton>
+              {isReset ? (
+                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+                  {submitting ? "설정 중..." : "설정 완료"}
+                </Button>
+              ) : (
+                <>
+                  <TermsPrivacyConsentField />
+                  <SensitiveHealthConsentField />
+                  <ConsentSubmitButton className="w-full" disabled={submitting}>
+                    {submitting ? "설정 중..." : "설정 완료"}
+                  </ConsentSubmitButton>
+                </>
+              )}
             </form>
           )}
         </CardContent>
