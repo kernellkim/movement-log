@@ -1,11 +1,11 @@
 # 운영 적용 체크리스트 (스케줄 DB + 권한)
 
-대상: 브랜치 `feat/schedule-db`의 마이그레이션 `20261026000100` ~ `20261026000900` (baseline `20260830000000` 제외).
+대상: 브랜치 `feat/schedule-db`의 마이그레이션 `20261026000100` ~ `20261026001000` 10개 (baseline `20260830000000` 제외)와 앱 코드 변경 1건(초대 route, 6-1단계).
 현재 상태: **로컬 검증 완료, 운영 미적용.** 아래 순서를 건너뛰거나 바꾸지 마세요.
 
-> **순서에 대한 메모 (확인 필요)**: 요청된 순서는 "트레이너 스니펫 → 마이그레이션 적용"이었지만,
+> **순서에 대한 메모 (확정됨)**: 요청된 순서는 "트레이너 스니펫 → 마이그레이션 적용"이었지만,
 > 스니펫이 넣는 `public.trainers` 테이블은 마이그레이션 `…000100`이 만들기 때문에 그 전에는 실행할 수 없습니다.
-> 그래서 5단계(마이그레이션 적용) 바로 다음 6단계에서 실행하도록 배치했습니다. 그 사이의 틈은 안전합니다.
+> 그래서 5단계(마이그레이션 적용) 바로 다음 6단계에서 실행합니다(소유자 확정). 그 사이의 틈은 안전합니다.
 > 앱은 `members`를 service role로만 INSERT하고(`app/api/members/invite/route.ts`), 스케줄 기능은 아직 앱에 없기 때문입니다.
 
 ## 1. 백업 + 복원 연습 완료
@@ -50,12 +50,37 @@ supabase migration list     # 로컬과 원격이 baseline까지 일치하는지
 - [ ] 7단계 스모크 테스트를 리허설 프로젝트의 앱(Vercel 프리뷰 + 해당 프로젝트 키)에서 통과시킨다.
 - [ ] 리허설에서 막힌 점과 걸린 시간을 이 문서에 적어 둔다.
 
+### 3-1. 리허설에서 반드시 확인할 것 (운영에서는 확인하지 못한 것들)
+
+이 레포 환경에서는 운영 프로젝트에 `supabase link` 하지 않았고(읽기 전용 SQL 조회만 했음), 로컬 스택에서는 마이그레이션 기록 테이블이
+비어 있어서 **2단계(baseline repair)는 한 번도 실행해 보지 못했습니다.** 아래는 제가 직접 확인한 것과 아직 모르는 것의 구분입니다.
+
+확인한 것 (로컬, 운영 카탈로그 조회):
+- 운영의 마이그레이션 기록에는 옛 이름 22개 버전이 있다 (`list_migrations`로 조회, 2단계 목록과 같음).
+- baseline 파일은 운영 스키마와 테이블·컬럼·제약·인덱스·정책·권한이 일치한다 (해시 비교).
+- `supabase db reset`으로 빈 DB에서 baseline부터 끝까지 적용되고 pgTAP 119개가 통과한다.
+- `postgres`는 운영·로컬 모두 슈퍼유저가 아니며, 로컬에서 `alter default privileges for role postgres`가 성공했다.
+
+리허설에서 직접 확인해야 하는 것 (하나라도 다르면 2단계 명령을 고치고 이 문서에 적는다):
+- [ ] **`supabase migration list`가 옛 기록 22개를 어떻게 보여 주는가.** 예상: 원격에만 있는 22개가 "Remote only"로 나오고, `db push`는
+      "Remote migration versions not found in local migrations directory" 오류로 멈춘다. 예상과 다르면(오류 없이 진행 등) 즉시 중단.
+- [ ] **옛 22개를 `repair --status reverted`로 표시하면** `supabase_migrations.schema_migrations`에서 그 행들만 사라지고 **스키마는 그대로**인가
+      (`\dt public.*`, 행 수 비교로 확인). 이것이 "옛 22개를 어떻게 처리하는가"에 대한 이 문서의 답이다. 대안(`supabase db pull`로 새 파일 생성)은 쓰지 않는다.
+- [ ] **`repair --status applied 20260830000000` 이후** `migration list`에서 baseline이 로컬·원격 양쪽에 "applied"로 보이는가.
+- [ ] **`supabase db push --dry-run`이 정확히 10개 파일(`…000100` ~ `…001000`)만 보여 주는가.** baseline이나 `seed.sql`이 목록에 있으면 중단.
+- [ ] 만약 baseline이 실행 대상에 들어가 버리면 첫 `create table`에서 "already exists"로 실패해야 한다 (마이그레이션 파일 하나는 한 트랜잭션이라
+      중간까지 적용되지 않는다고 알고 있으나 **확인하지 못함**). 실제로 일부만 적용되는지 리허설에서 본다.
+- [ ] `db push`가 시드를 실행하지 않는가 (`--include-seed`를 붙이지 않은 기본 동작).
+- [ ] 적용 후 `select current_user;`가 `postgres`이고, `pg_default_acl`에서 `postgres`의 public 기본 권한에서 anon·authenticated가 빠졌는가
+      (`supabase_admin` 항목은 그대로 남는 것이 정상).
+- [ ] 같은 CLI 버전으로 확인한다 (이 레포에서 쓴 버전: 2.122.0).
+
 ## 4. (건너뜀: 스니펫은 6단계로 이동. 위 메모 참고)
 
 ## 5. 마이그레이션 적용
 
 ```bash
-supabase db push --dry-run   # 적용될 파일이 …000100 ~ …000900 9개뿐인지 확인
+supabase db push --dry-run   # 적용될 파일이 …000100 ~ …001000 10개뿐인지 확인
 supabase db push
 ```
 
@@ -75,6 +100,17 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 
 - [ ] 트레이너 2~3명 모두 등록했다. 회원 로그인 계정은 등록되지 않는다(스니펫이 거부함).
 - [ ] `select user_id, instructor_name from public.trainers;`로 등록 결과를 확인했다.
+
+## 6-1. 앱 코드 배포 (초대 route 변경)
+
+> **main에는 마이그레이션 적용(5단계)과 트레이너 등록(6단계)이 모두 끝난 뒤에만 배포합니다.**
+> main에 머지하면 Vercel이 바로 운영에 배포하는데, 이 변경된 초대 route는 `public.trainers`에 행이 있는 사용자만 허용합니다.
+> 그 전에 배포하면 기존 트레이너도 `trainers` 행이 없어(테이블이 없어도 마찬가지) **403 "권한이 없습니다."로 초대를 만들 수 없습니다.**
+
+- 대상 파일: `app/api/members/invite/route.ts`, `lib/auth.ts`(`isTrainer` 추가). 커밋 제목: `Require a trainers row to create member invites`.
+- 브랜치 push로 생기는 Vercel **프리뷰**는 운영 URL이 아니지만, 프리뷰가 운영 Supabase 키를 쓰고 있다면 위 이유로 프리뷰에서 초대가 막힙니다(정상).
+- [ ] 5·6단계 완료 후에 머지했다.
+- [ ] 같은 시점에 7단계의 "새 회원 추가"를 바로 확인한다.
 
 ## 7. 스모크 테스트 (운영, 각각 직접 눌러 본다)
 
@@ -96,8 +132,9 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 
 | 마이그레이션 | 롤백 | 위험도 |
 | --- | --- | --- |
+| `…001000` INSERT 시 user_id 금지 | `alter policy members_insert_requires_trainer on public.members with check (private.is_trainer() and trainer_id = (select auth.uid()));` | 🟢 |
 | `…000900` 기본 권한 | `alter default privileges for role postgres in schema public grant all on tables to anon, authenticated; ... on sequences ...; ... on functions ...;` 와 `alter default privileges for role postgres grant execute on functions to public;` (이전 상태 복원, 미래 객체에만 영향) | 🟢 |
-| `…000800` user_id 고정 + INSERT 제한 | `drop policy members_insert_requires_trainer on public.members;` 그리고 `…000600`의 `private.members_self_update_guard()` 본문으로 `create or replace` | 🟢 |
+| `…000800` user_id 고정 + INSERT 제한 (`…001000`이 INSERT 조건을 더 조임) | `drop policy members_insert_requires_trainer on public.members;` 그리고 `…000600`의 `private.members_self_update_guard()` 본문으로 `create or replace` | 🟢 |
 | `…000700` 권한 회수 | `grant truncate, trigger, references on all tables in schema public to anon, authenticated; grant all on all tables in schema public to anon;` (보안은 느슨해짐) | 🟢 |
 | `…000600` members 자기 수정 제한 | `drop trigger trg_members_self_update_guard on public.members; drop function private.members_self_update_guard();` | 🟢 |
 | `…000500` voided_at → superseded_at | `alter table public.schedule_signatures rename column superseded_at to voided_at;` 그리고 `…000300`의 함수 두 개 본문으로 `create or replace`. **앱/동기화 코드도 같이 되돌려야 함** | 🟡 |
@@ -106,6 +143,8 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 | `…000200` 스케줄 테이블 | `drop table schedule_signatures, schedule_lessons, schedule_enrollments;` — **행이 쌓인 뒤에는 데이터가 모두 사라짐. 먼저 이 3개 테이블을 덤프할 것.** 사인은 설계상 지울 수 없으므로(트리거) 롤백은 DROP TABLE로만 가능 | 🔴 |
 | `…000100` trainers + program | `drop function private.is_trainer(); drop table public.trainers; alter table public.members drop column program;` — **`program` 값과 trainers 행이 사라짐** | 🔴 |
 | baseline repair (2단계) | `supabase migration repair --status`로 기록만 되돌릴 수 있음. 스키마에는 영향 없음 | 🟢 |
+
+앱 코드(6-1단계)를 되돌릴 때는 main에서 해당 커밋을 revert합니다. DB 롤백과는 독립적이며, 트레이너 등록 행(`trainers`)은 그대로 두어도 무해합니다.
 
 ### 파괴적이거나 되돌리기 어려운 것
 
