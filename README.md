@@ -73,6 +73,20 @@ cp .env.example .env.local  # Supabase/Anthropic 키 입력
 npm run dev
 ```
 
+### 데이터베이스 (Supabase) 로컬 개발
+
+스키마는 `supabase/migrations`의 마이그레이션 파일로만 바꿉니다. Docker와 Supabase CLI가 필요합니다.
+
+```bash
+supabase start      # 로컬 Supabase 시작
+supabase db reset   # 마이그레이션 + supabase/seed.sql(운동 라이브러리 78개)로 처음부터 재구성
+supabase test db    # pgTAP 테스트 (RLS 교차 접근, 트리거, 권한)
+```
+
+- `supabase/ops/`의 SQL은 **마이그레이션이 아니라** 사람이 직접 한 번 실행하는 운영 스니펫입니다. 자동으로 적용되지 않습니다.
+- **`supabase/ops/register_trainer.sql`은 운영 DB에 스케줄 마이그레이션을 적용한 직후, 스케줄 기능을 쓰기 전에** 트레이너 계정마다 한 번 실행합니다. `trainers` 테이블은 마이그레이션 `20261026000100`이 만들기 때문에 그 전에는 실행할 수 없습니다. 같은 계정에 다시 실행해도 안전합니다.
+- 운영 적용 절차와 롤백 방법은 [`supabase/ROLLOUT.md`](supabase/ROLLOUT.md)를 따릅니다. `baseline` 마이그레이션과 `seed.sql`은 운영에서 실행하지 않습니다.
+
 ## 출처
 
 - 운동 라이브러리는 [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Public Domain)를 기반으로 필터링·한글화했습니다.
