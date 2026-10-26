@@ -1,7 +1,7 @@
 -- Schedule schema: RLS cross-access, triggers, FK behaviour. Fake data only.
 -- Run: supabase test db
 begin;
-select plan(101);
+select plan(116);
 
 -- ---- helpers: impersonate a role + JWT subject -----------------------------
 create schema tests;
@@ -42,6 +42,9 @@ begin
   reset role;
   perform set_config('request.jwt.claims', '', true);
 end $$;
+
+-- new functions get no PUBLIC execute (20261026000900), so the helpers are granted explicitly
+grant execute on all functions in schema tests to public;
 
 -- ---- fixtures (fake) --------------------------------------------------------
 -- users: ta/tb trainers, ma/mb member logins, nt = authenticated but not a trainer
@@ -405,9 +408,9 @@ select tests.as_user('b0000000-0000-0000-0000-00000000000b');
 select lives_ok(
   $$update public.members set program = 'apartment', name = 'Member B renamed' where id = 'b1000000-0000-0000-0000-000000000001'$$,
   'managing trainer can still change program and name of own member');
-select lives_ok(
+select throws_ok(
   $$update public.members set user_id = null where id = 'b1000000-0000-0000-0000-000000000001'$$,
-  'managing trainer can still change user_id of own member');
+  '42501', 'user_id can only be changed by service_role', 'managing trainer can no longer change user_id (section 13 has the full set)');
 select throws_ok(
   $$update public.members set trainer_id = 'a0000000-0000-0000-0000-00000000000a' where id = 'b1000000-0000-0000-0000-000000000001'$$,
   '42501', null, 'trainer cannot hand a member to another trainer (RLS)');
@@ -416,9 +419,9 @@ select tests.as_user('a0000000-0000-0000-0000-00000000000a');
 select lives_ok(
   $$update public.members set program = 'pt' where id = 'a1000000-0000-0000-0000-000000000002'$$,
   'trainer A can change program of own resident');
-select lives_ok(
+select throws_ok(
   $$update public.members set user_id = 'c0000000-0000-0000-0000-0000000000c0' where id = 'a1000000-0000-0000-0000-000000000002'$$,
-  'trainer A can link a login to own resident');
+  '42501', 'user_id can only be changed by service_role', 'trainer A cannot link a login to own resident (linking is service_role only)');
 
 select tests.as_service();
 select lives_ok(
@@ -440,6 +443,82 @@ select ok(has_table_privilege('authenticated', 'public.members', 'UPDATE') and h
           'authenticated keeps the DML privileges the app uses');
 select tests.as_anon();
 select throws_ok('select * from public.questionnaires', '42501', null, 'anon is denied on tables outside the keep-alive set');
+select tests.as_admin();
+
+-- ============================================================================
+-- 13. user_id on members: only service_role may change it
+-- ============================================================================
+select tests.as_admin();
+insert into public.members (id, trainer_id, user_id, name) values
+  ('a1000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000c0', 'Linked member');
+
+select tests.as_user('a0000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  $$update public.members set user_id = 'b0000000-0000-0000-0000-00000000000b' where id = 'a1000000-0000-0000-0000-000000000003'$$,
+  '42501', 'user_id can only be changed by service_role', 'trainer cannot point user_id at another trainer');
+select throws_ok(
+  $$update public.members set user_id = gen_random_uuid() where id = 'a1000000-0000-0000-0000-000000000003'$$,
+  '42501', 'user_id can only be changed by service_role', 'trainer cannot point user_id at a random uuid');
+select throws_ok(
+  $$update public.members set user_id = null where id = 'a1000000-0000-0000-0000-000000000003'$$,
+  '42501', 'user_id can only be changed by service_role', 'trainer cannot clear user_id');
+
+select tests.as_service();
+select lives_ok(
+  $$update public.members set user_id = null where id = 'a1000000-0000-0000-0000-000000000003'$$,
+  'service_role can still change user_id');
+select tests.as_admin();
+
+-- ============================================================================
+-- 14. members INSERT: only registered trainers, only for themselves
+-- ============================================================================
+select tests.as_user('c0000000-0000-0000-0000-0000000000c0');
+select throws_ok(
+  $$insert into public.members (trainer_id, name) values ('c0000000-0000-0000-0000-0000000000c0', 'Self-made member')$$,
+  '42501', null, 'logged-in non-trainer cannot insert a member (even with own trainer_id)');
+
+select tests.as_user('b0000000-0000-0000-0000-0000000000b1');
+select throws_ok(
+  $$insert into public.members (trainer_id, name) values ('b0000000-0000-0000-0000-0000000000b1', 'Member-made member')$$,
+  '42501', null, 'a member login cannot insert a member');
+
+select tests.as_user('a0000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  $$insert into public.members (trainer_id, name) values ('b0000000-0000-0000-0000-00000000000b', 'Stolen slot')$$,
+  '42501', null, 'trainer cannot insert a member for another trainer');
+select lives_ok(
+  $$insert into public.members (trainer_id, name, program) values ('a0000000-0000-0000-0000-00000000000a', 'New resident', 'apartment')$$,
+  'trainer can still insert their own member');
+select is((select count(*)::int from public.members where name = 'New resident'), 1, 'the inserted member is visible to the trainer');
+
+select tests.as_anon();
+select throws_ok(
+  $$insert into public.members (trainer_id, name) values ('a0000000-0000-0000-0000-00000000000a', 'Anon made')$$,
+  '42501', null, 'anon cannot insert a member');
+
+-- ============================================================================
+-- 15. default privileges: new objects created by postgres get nothing for anon/authenticated
+-- ============================================================================
+select tests.as_admin();
+create table public.zz_default_priv (id int generated always as identity primary key);
+create function public.zz_default_priv_fn() returns int language sql as 'select 1';
+
+select is((select count(*)::int from unnest(array['anon','authenticated']) r,
+             unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p
+           where has_table_privilege(r, 'public.zz_default_priv', p)),
+          0, 'new table: no privileges for anon/authenticated');
+select is((select count(*)::int from unnest(array['anon','authenticated']) r,
+             unnest(array['USAGE','SELECT','UPDATE']) p
+           where has_sequence_privilege(r, 'public.zz_default_priv_id_seq', p)),
+          0, 'new sequence: no privileges for anon/authenticated');
+select is((select count(*)::int from unnest(array['anon','authenticated']) r
+           where has_function_privilege(r, 'public.zz_default_priv_fn()', 'EXECUTE')),
+          0, 'new function: no EXECUTE for anon/authenticated');
+select ok(has_table_privilege('service_role', 'public.zz_default_priv', 'SELECT'),
+          'service_role keeps access to new tables');
+select tests.as_anon();
+select lives_ok('select 1 from public.exercise_library limit 1',
+                'intentional anon SELECT on the keep-alive tables still works');
 select tests.as_admin();
 
 select * from finish();
