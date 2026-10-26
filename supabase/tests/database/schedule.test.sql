@@ -1,7 +1,7 @@
 -- Schedule schema: RLS cross-access, triggers, FK behaviour. Fake data only.
 -- Run: supabase test db
 begin;
-select plan(116);
+select plan(119);
 
 -- ---- helpers: impersonate a role + JWT subject -----------------------------
 create schema tests;
@@ -490,6 +490,16 @@ select lives_ok(
   $$insert into public.members (trainer_id, name, program) values ('a0000000-0000-0000-0000-00000000000a', 'New resident', 'apartment')$$,
   'trainer can still insert their own member');
 select is((select count(*)::int from public.members where name = 'New resident'), 1, 'the inserted member is visible to the trainer');
+select throws_ok(
+  $$insert into public.members (trainer_id, name, user_id) values ('a0000000-0000-0000-0000-00000000000a', 'Pre-linked', 'c0000000-0000-0000-0000-0000000000c0')$$,
+  '42501', null, 'trainer cannot insert a member that already carries a user_id');
+select lives_ok(
+  $$insert into public.members (trainer_id, name, user_id) values ('a0000000-0000-0000-0000-00000000000a', 'Explicit null link', null)$$,
+  'trainer can insert a member with user_id NULL');
+select tests.as_service();
+select lives_ok(
+  $$insert into public.members (trainer_id, name, user_id) values ('a0000000-0000-0000-0000-00000000000a', 'Invited member', 'c0000000-0000-0000-0000-0000000000c0')$$,
+  'service_role can insert a member with user_id (the invite flow)');
 
 select tests.as_anon();
 select throws_ok(
