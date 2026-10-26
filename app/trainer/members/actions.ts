@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMemberForUser } from "@/lib/auth";
+import { isTrainer } from "@/lib/auth";
 
 // members.user_id -> auth.users는 CASCADE가 아니라 NO ACTION이라, auth 계정을
 // 먼저 지우면 이 members 행이 그 계정을 참조 중이라는 이유로 삭제가 실패한다.
@@ -18,8 +18,8 @@ export async function deleteMember(memberId: string) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const asMember = await getMemberForUser(supabase, user.id);
-  if (asMember) {
+  // Only registered trainers (a row in public.trainers) may delete members and their logins.
+  if (!(await isTrainer(supabase, user.id))) {
     redirect(`/trainer?error=${encodeURIComponent("권한이 없습니다.")}`);
   }
 
