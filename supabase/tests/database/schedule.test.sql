@@ -1,7 +1,7 @@
 -- Schedule schema: RLS cross-access, triggers, FK behaviour. Fake data only.
 -- Run: supabase test db
 begin;
-select plan(82);
+select plan(101);
 
 -- ---- helpers: impersonate a role + JWT subject -----------------------------
 create schema tests;
@@ -28,6 +28,13 @@ begin
   reset role;
   perform set_config('request.jwt.claims', '{"role":"anon"}', true);
   set local role anon;
+end $$;
+
+create function tests.as_service() returns void language plpgsql as $$
+begin
+  reset role;
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  set local role service_role;
 end $$;
 
 create function tests.as_admin() returns void language plpgsql as $$
@@ -126,7 +133,7 @@ select is(tests.rows_updated($$update public.schedule_lessons set memo = 'hacked
           0, 'A update of B lesson matches 0 rows');
 select is(tests.rows_updated($$update public.schedule_enrollments set dong = 'hacked', updated_at = now() where id = 'be000000-0000-0000-0000-000000000001'$$),
           0, 'A update of B enrollment matches 0 rows');
-select is(tests.rows_updated($$update public.schedule_signatures set voided_at = now(), updated_at = now() where id = 'b5000000-0000-0000-0000-000000000001'$$),
+select is(tests.rows_updated($$update public.schedule_signatures set superseded_at = now(), updated_at = now() where id = 'b5000000-0000-0000-0000-000000000001'$$),
           0, 'A update of B signature matches 0 rows');
 
 select throws_ok(
@@ -142,7 +149,7 @@ select throws_ok(
 select throws_ok(
   $$insert into public.schedule_signatures (id, trainer_id, lesson_id, path, signed_at, updated_at)
     values ('b5000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-00000000000a', 'a1e00000-0000-0000-0000-000000000002', 'p', now(), now())
-    on conflict (id) do update set voided_at = now(), trainer_id = excluded.trainer_id$$,
+    on conflict (id) do update set superseded_at = now(), trainer_id = excluded.trainer_id$$,
   '42501', null, 'A cannot upsert over B signature');
 
 -- linking someone else's member / enrollment / lesson
@@ -224,7 +231,7 @@ select throws_ok(
   '42501', null, 'member cannot insert signatures');
 select is(tests.rows_updated($$update public.schedule_lessons set memo = 'x', updated_at = now()$$),
           0, 'member cannot update lessons');
-select is(tests.rows_updated($$update public.schedule_signatures set voided_at = now(), updated_at = now()$$),
+select is(tests.rows_updated($$update public.schedule_signatures set superseded_at = now(), updated_at = now()$$),
           0, 'member cannot void signatures');
 select throws_ok($$delete from public.schedule_signatures$$, '42501', null, 'member cannot delete signatures');
 
@@ -233,24 +240,24 @@ select is((select count(*)::int from public.schedule_lessons), 1, 'member B sees
 select is((select count(*)::int from public.schedule_signatures), 1, 'member B sees only own signature');
 
 -- ============================================================================
--- 6. signature append-only
+-- 6. signature append-only + superseded_at write-once
 -- ============================================================================
 select tests.as_user('a0000000-0000-0000-0000-00000000000a');
 select throws_ok(
   $$update public.schedule_signatures set path = 'forged', updated_at = now() where id = 'a5000000-0000-0000-0000-000000000001'$$,
-  'P0001', 'signature is append-only (only voided_at may change)', 'path cannot change');
+  'P0001', 'signature is append-only (only superseded_at may change)', 'path cannot change');
 select throws_ok(
   $$update public.schedule_signatures set snapshot_fee = 1, updated_at = now() where id = 'a5000000-0000-0000-0000-0000000000e1'$$,
-  'P0001', 'signature is append-only (only voided_at may change)', 'snapshot_fee cannot change');
+  'P0001', 'signature is append-only (only superseded_at may change)', 'snapshot_fee cannot change');
 select throws_ok(
   $$update public.schedule_signatures set signed_at = now(), updated_at = now() where id = 'a5000000-0000-0000-0000-000000000001'$$,
-  'P0001', 'signature is append-only (only voided_at may change)', 'signed_at cannot change');
+  'P0001', 'signature is append-only (only superseded_at may change)', 'signed_at cannot change');
 select throws_ok(
   $$update public.schedule_signatures set lesson_id = 'a1e00000-0000-0000-0000-000000000002', updated_at = now() where id = 'a5000000-0000-0000-0000-000000000001'$$,
-  'P0001', 'signature is append-only (only voided_at may change)', 'lesson_id cannot change');
+  'P0001', 'signature is append-only (only superseded_at may change)', 'lesson_id cannot change');
 select throws_ok(
   $$update public.schedule_signatures set trainer_id = 'b0000000-0000-0000-0000-00000000000b', updated_at = now() where id = 'a5000000-0000-0000-0000-000000000001'$$,
-  'P0001', 'signature is append-only (only voided_at may change)', 'trainer_id cannot be handed to B (guard fires before RLS check)');
+  'P0001', 'signature is append-only (only superseded_at may change)', 'trainer_id cannot be handed to B (guard fires before RLS check)');
 select throws_ok($$delete from public.schedule_signatures where id = 'a5000000-0000-0000-0000-000000000001'$$,
                  '42501', null, 'authenticated cannot delete a signature (no grant)');
 select tests.as_admin();
@@ -258,10 +265,19 @@ select throws_ok($$delete from public.schedule_signatures where id = 'a5000000-0
                  'P0001', 'signature cannot be deleted', 'even the table owner cannot delete a signature (trigger)');
 select tests.as_user('a0000000-0000-0000-0000-00000000000a');
 select lives_ok(
-  $$update public.schedule_signatures set voided_at = now(), updated_at = now() where id = 'a5000000-0000-0000-0000-0000000000e1'$$,
-  'voided_at can be set');
-select isnt((select voided_at from public.schedule_signatures where id = 'a5000000-0000-0000-0000-0000000000e1'),
-            null, 'voided_at persisted');
+  $$update public.schedule_signatures set superseded_at = now(), updated_at = now() where id = 'a5000000-0000-0000-0000-0000000000e1'$$,
+  'superseded_at can be set');
+select isnt((select superseded_at from public.schedule_signatures where id = 'a5000000-0000-0000-0000-0000000000e1'),
+            null, 'superseded_at persisted');
+select throws_ok(
+  $$update public.schedule_signatures set superseded_at = null, updated_at = now() where id = 'a5000000-0000-0000-0000-0000000000e1'$$,
+  'P0001', 'signature superseded_at is write-once', 'superseded_at cannot be cleared (un-supersede)');
+select throws_ok(
+  $$update public.schedule_signatures set superseded_at = '2020-01-01 00:00+00', updated_at = now() where id = 'a5000000-0000-0000-0000-0000000000e1'$$,
+  'P0001', 'signature superseded_at is write-once', 'superseded_at cannot be changed to another value (re-supersede)');
+select lives_ok(
+  $$update public.schedule_signatures set superseded_at = superseded_at, updated_at = now() where id = 'a5000000-0000-0000-0000-0000000000e1'$$,
+  'writing the same superseded_at again is a harmless no-op');
 select lives_ok(
   $$insert into public.schedule_signatures (id, trainer_id, lesson_id, path, signed_at, updated_at)
     values (gen_random_uuid(), 'a0000000-0000-0000-0000-00000000000a', 'a1e00000-0000-0000-0000-000000000002', 'p', now(), now())$$,
@@ -285,10 +301,10 @@ select lives_ok(
 select isnt((select deleted_at from public.schedule_lessons where id = 'a1e00000-0000-0000-0000-0000000000f1'),
             null, 'soft delete persisted');
 select tests.as_admin();
-update public.schedule_signatures set voided_at = now(), updated_at = now() where lesson_id = 'a1e00000-0000-0000-0000-000000000001';
+update public.schedule_signatures set superseded_at = now(), updated_at = now() where lesson_id = 'a1e00000-0000-0000-0000-000000000001';
 select lives_ok(
   $$update public.schedule_lessons set deleted_at = now(), updated_at = now() where id = 'a1e00000-0000-0000-0000-000000000001'$$,
-  'lesson whose only signature is voided can be soft-deleted');
+  'lesson whose only signature is superseded can be soft-deleted');
 
 -- ============================================================================
 -- 8. write trigger: stale ignored, trainer_id immutable, server stamp, clock clamp
@@ -360,6 +376,71 @@ select tests.as_admin();
 select throws_ok(
   $$insert into public.members (trainer_id, name, program) values ('a0000000-0000-0000-0000-00000000000a', 'x', 'bogus')$$,
   '23514', null, 'program only allows pt / apartment');
+
+-- ============================================================================
+-- 11. members self-update guard (member cannot change authorization columns)
+-- ============================================================================
+select tests.as_user('b0000000-0000-0000-0000-0000000000b1');
+select throws_ok(
+  $$update public.members set trainer_id = 'a0000000-0000-0000-0000-00000000000a' where user_id = 'b0000000-0000-0000-0000-0000000000b1'$$,
+  '42501', 'only the managing trainer can change id, trainer_id, user_id, program, is_demo_protected or created_at',
+  'member cannot change own trainer_id');
+select throws_ok(
+  $$update public.members set user_id = 'c0000000-0000-0000-0000-0000000000c0' where user_id = 'b0000000-0000-0000-0000-0000000000b1'$$,
+  '42501', null, 'member cannot change own user_id');
+select throws_ok(
+  $$update public.members set program = 'apartment' where user_id = 'b0000000-0000-0000-0000-0000000000b1'$$,
+  '42501', null, 'member cannot change own program');
+select throws_ok(
+  $$update public.members set is_demo_protected = true where user_id = 'b0000000-0000-0000-0000-0000000000b1'$$,
+  '42501', null, 'member cannot change own is_demo_protected');
+select lives_ok(
+  $$update public.members set deletion_requested_at = now(), password_set_at = now(), birth_date = '1990-01-01', gender = 'female'
+    where user_id = 'b0000000-0000-0000-0000-0000000000b1'$$,
+  'member can still update password_set_at, deletion_requested_at, birth_date, gender');
+select is(tests.rows_updated($$update public.members set goal = 'strength' where user_id = 'b0000000-0000-0000-0000-0000000000b1'$$),
+          1, 'member self-service update still matches the own row');
+
+select tests.as_user('b0000000-0000-0000-0000-00000000000b');
+select lives_ok(
+  $$update public.members set program = 'apartment', name = 'Member B renamed' where id = 'b1000000-0000-0000-0000-000000000001'$$,
+  'managing trainer can still change program and name of own member');
+select lives_ok(
+  $$update public.members set user_id = null where id = 'b1000000-0000-0000-0000-000000000001'$$,
+  'managing trainer can still change user_id of own member');
+select throws_ok(
+  $$update public.members set trainer_id = 'a0000000-0000-0000-0000-00000000000a' where id = 'b1000000-0000-0000-0000-000000000001'$$,
+  '42501', null, 'trainer cannot hand a member to another trainer (RLS)');
+
+select tests.as_user('a0000000-0000-0000-0000-00000000000a');
+select lives_ok(
+  $$update public.members set program = 'pt' where id = 'a1000000-0000-0000-0000-000000000002'$$,
+  'trainer A can change program of own resident');
+select lives_ok(
+  $$update public.members set user_id = 'c0000000-0000-0000-0000-0000000000c0' where id = 'a1000000-0000-0000-0000-000000000002'$$,
+  'trainer A can link a login to own resident');
+
+select tests.as_service();
+select lives_ok(
+  $$update public.members set trainer_id = 'b0000000-0000-0000-0000-00000000000b' where id = 'a1000000-0000-0000-0000-000000000002'$$,
+  'service_role is not restricted by the guard');
+select tests.as_admin();
+
+-- ============================================================================
+-- 12. unneeded table privileges are gone
+-- ============================================================================
+select is((select count(*)::int from pg_class c, unnest(array['anon','authenticated']) r, unnest(array['TRUNCATE','TRIGGER','REFERENCES']) p
+           where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and has_table_privilege(r, c.oid, p)),
+          0, 'anon/authenticated have no TRUNCATE, TRIGGER or REFERENCES on any public table');
+select is((select string_agg(c.relname::text || ':' || p, ',' order by c.relname::text, p)
+           from pg_class c, unnest(array['SELECT','INSERT','UPDATE','DELETE']) p
+           where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and has_table_privilege('anon', c.oid, p)),
+          'exercise_library:SELECT,members:SELECT,routines:SELECT', 'anon keeps only SELECT on the three keep-alive tables');
+select ok(has_table_privilege('authenticated', 'public.members', 'UPDATE') and has_table_privilege('authenticated', 'public.session_logs', 'DELETE'),
+          'authenticated keeps the DML privileges the app uses');
+select tests.as_anon();
+select throws_ok('select * from public.questionnaires', '42501', null, 'anon is denied on tables outside the keep-alive set');
+select tests.as_admin();
 
 select * from finish();
 rollback;
