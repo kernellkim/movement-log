@@ -1,6 +1,6 @@
 # 운영 적용 체크리스트 (스케줄 DB + 권한)
 
-대상: 브랜치 `feat/schedule-db`의 마이그레이션 `20261026000100` ~ `20261026001000` 10개 (baseline `20260830000000` 제외)와 앱 코드 변경 1건(초대 route, 6-1단계).
+대상: 브랜치 `feat/schedule-db`의 마이그레이션 `20261026000100` ~ `20261026001000` 10개 (baseline `20260830000000` 제외)와 앱 코드 변경(서버 경로 3곳, 6-1단계).
 현재 상태: **로컬 검증 완료, 운영 미적용.** 아래 순서를 건너뛰거나 바꾸지 마세요.
 
 > **순서에 대한 메모 (확정됨)**: 요청된 순서는 "트레이너 스니펫 → 마이그레이션 적용"이었지만,
@@ -101,16 +101,17 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 - [ ] 트레이너 2~3명 모두 등록했다. 회원 로그인 계정은 등록되지 않는다(스니펫이 거부함).
 - [ ] `select user_id, instructor_name from public.trainers;`로 등록 결과를 확인했다.
 
-## 6-1. 앱 코드 배포 (초대 route 변경)
+## 6-1. 앱 코드 배포 (트레이너 판정을 `trainers` 행으로 변경)
 
 > **main에는 마이그레이션 적용(5단계)과 트레이너 등록(6단계)이 모두 끝난 뒤에만 배포합니다.**
-> main에 머지하면 Vercel이 바로 운영에 배포하는데, 이 변경된 초대 route는 `public.trainers`에 행이 있는 사용자만 허용합니다.
-> 그 전에 배포하면 기존 트레이너도 `trainers` 행이 없어(테이블이 없어도 마찬가지) **403 "권한이 없습니다."로 초대를 만들 수 없습니다.**
+> main에 머지하면 Vercel이 바로 운영에 배포하는데, 변경된 서버 경로 3곳(초대, 비밀번호 재설정 링크, 회원 삭제)은 `public.trainers`에 행이 있는 사용자만 허용합니다.
+> 그 전에 배포하면 기존 트레이너도 `trainers` 행이 없어(테이블이 없어도 마찬가지) **초대·비밀번호 재설정·회원 삭제가 모두 "권한이 없습니다."(403 또는 안내 문구)로 막힙니다.**
 
-- 대상 파일: `app/api/members/invite/route.ts`, `lib/auth.ts`(`isTrainer` 추가). 커밋 제목: `Require a trainers row to create member invites`.
-- 브랜치 push로 생기는 Vercel **프리뷰**는 운영 URL이 아니지만, 프리뷰가 운영 Supabase 키를 쓰고 있다면 위 이유로 프리뷰에서 초대가 막힙니다(정상).
+- 대상 파일: `app/api/members/invite/route.ts`, `app/api/members/reset-password/route.ts`, `app/trainer/members/actions.ts`(회원 삭제), `lib/auth.ts`(`isTrainer` 추가).
+- 커밋 제목: `Require a trainers row to create member invites`, `Require a trainers row for reset-password and member deletion`.
+- 브랜치 push로 생기는 Vercel **프리뷰**는 운영 URL이 아니지만, 프리뷰가 운영 Supabase 키를 쓰고 있다면 위 이유로 프리뷰에서 초대·비밀번호 재설정·회원 삭제가 막힙니다(정상).
 - [ ] 5·6단계 완료 후에 머지했다.
-- [ ] 같은 시점에 7단계의 "새 회원 추가"를 바로 확인한다.
+- [ ] 같은 시점에 7단계의 "새 회원 추가", "비밀번호 재설정 링크 발급", "회원 삭제"를 바로 확인한다.
 
 ## 7. 스모크 테스트 (운영, 각각 직접 눌러 본다)
 
@@ -120,6 +121,7 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 - [ ] 초대받은 회원이 비밀번호를 설정한다 (`members.password_set_at` 갱신: 회원 UPDATE 경로)
 - [ ] 회원이 문진표를 제출한다 (`birth_date`, `gender` 갱신)
 - [ ] 회원이 탈퇴 요청을 켰다 끈다 (`deletion_requested_at` 갱신)
+- [ ] 트레이너가 비밀번호 재설정 링크를 발급한다 (`trainers` 행 확인 경로)
 - [ ] 트레이너가 회원 삭제를 한다 (테스트 회원으로. `auth` 계정까지 지워짐)
 - [ ] 회원이 다른 회원 데이터를 볼 수 없다 (URL 직접 입력으로 확인)
 
