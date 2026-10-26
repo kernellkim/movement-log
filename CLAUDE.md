@@ -18,7 +18,7 @@ truth for decisions): page ID `3cc42b8c3bc181bba32ae02c9858e178`.
 - Supabase (Postgres + RLS + Auth) — project ref `kkwlfrmrtatfmozewzxa`, Singapore region
 - Claude API (`@anthropic-ai/sdk`) for AI features:
   - Risk classification, assessment recommendation, routine generation, InBody photo value extraction (vision) → `claude-sonnet-5`
-- Deployed on Vercel, team `iigniim`
+- Deployed on Vercel, team `kernelkim`
 
 ## Hard rules — do not violate
 1. **AI never makes a final medical/exercise decision.** Every AI-generated
