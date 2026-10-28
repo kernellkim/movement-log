@@ -2,11 +2,10 @@
 --
 -- Registers an existing trainer account in public.trainers. Idempotent: running it again
 -- for the same account changes nothing. Needs the trainers table, i.e. run it AFTER
--- migration 20261026000100 has been applied (see supabase/ROLLOUT.md).
+-- migration 20261028000300 has been applied (see supabase/ROLLOUT.md).
 --
 -- Usage (psql, one account per run):
---   psql "$DATABASE_URL" -v trainer_user_id='<auth.users.id>' [-v instructor_name='<name>'] \
---        -f supabase/ops/register_trainer.sql
+--   psql "$DATABASE_URL" -v trainer_user_id='<auth.users.id>' -f supabase/ops/register_trainer.sql
 --
 -- Safety checks: the auth user must exist and must not be a member login.
 
@@ -17,13 +16,7 @@
   do $$ begin raise exception 'pass the trainer auth user id: -v trainer_user_id=<uuid>'; end $$;
 \endif
 
-\if :{?instructor_name}
-\else
-  \set instructor_name ''
-\endif
-
 select set_config('ops.trainer_user_id', :'trainer_user_id', false) as _;
-select set_config('ops.instructor_name', :'instructor_name', false) as _;
 
 do $ops$
 declare
@@ -36,8 +29,8 @@ begin
     raise exception 'user % is a member login, refusing to register as trainer', uid;
   end if;
 
-  insert into public.trainers (user_id, instructor_name)
-  values (uid, current_setting('ops.instructor_name'))
+  insert into public.trainers (user_id)
+  values (uid)
   on conflict (user_id) do nothing;
 
   raise notice 'trainer % registered (or already was)', uid;
