@@ -1,12 +1,14 @@
-# 운영 적용 체크리스트 (스케줄 DB + 권한)
+# 운영 적용 체크리스트 (트레이너 캘린더 DB + 권한)
 
-대상: 브랜치 `feat/schedule-db`의 마이그레이션 `20261026000100` ~ `20261026001000` 10개 (baseline `20260830000000` 제외)와 앱 코드 변경(서버 경로 3곳, 6-1단계).
+대상: 브랜치 `feat/schedule-calendar`의 마이그레이션 `20261028000100` ~ `20261028000700` 7개 (baseline `20260830000000` 제외)와 앱 코드 변경(서버 경로 3곳, 6-1단계).
+범위: 트레이너용 단순 캘린더(`schedule_events`)와 회원 읽기 전용 뷰(`member_schedule`)뿐입니다. 사인·출력·신청서·요금·아파트 주민은 이 앱에 없습니다.
+(이전 브랜치 `feat/schedule-db`의 10개 마이그레이션은 로컬 외에는 어디에도 적용된 적이 없고, 이 7개로 대체되었습니다. 둘을 섞어 적용하지 마세요.)
 현재 상태: **로컬 검증 완료, 운영 미적용.** 아래 순서를 건너뛰거나 바꾸지 마세요.
 
 > **순서에 대한 메모 (확정됨)**: 요청된 순서는 "트레이너 스니펫 → 마이그레이션 적용"이었지만,
-> 스니펫이 넣는 `public.trainers` 테이블은 마이그레이션 `…000100`이 만들기 때문에 그 전에는 실행할 수 없습니다.
+> 스니펫이 넣는 `public.trainers` 테이블은 마이그레이션 `…000300`이 만들기 때문에 그 전에는 실행할 수 없습니다.
 > 그래서 5단계(마이그레이션 적용) 바로 다음 6단계에서 실행합니다(소유자 확정). 그 사이의 틈은 안전합니다.
-> 앱은 `members`를 service role로만 INSERT하고(`app/api/members/invite/route.ts`), 스케줄 기능은 아직 앱에 없기 때문입니다.
+> 앱은 `members`를 service role로만 INSERT하고(`app/api/members/invite/route.ts`), 캘린더 UI는 아직 앱에 없기 때문입니다.
 
 ## 1. 백업 + 복원 연습 완료
 
@@ -45,7 +47,7 @@ supabase migration list     # 로컬과 원격이 baseline까지 일치하는지
 
 - [ ] 새 Supabase 프로젝트를 만든다. **운영 프로젝트가 아니며 실제 회원 데이터는 넣지 않는다.**
 - [ ] 운영 스키마를 재현한다: 1단계 덤프에서 **스키마만** 가져오거나, 빈 프로젝트에 `20260830000000_baseline.sql`만 실행한다. 그 뒤 `exercise_library`는 `seed.sql`로 채워도 된다(리허설 프로젝트에서만).
-- [ ] 가짜 트레이너 계정 1개, 가짜 회원 계정 1개를 만들고(회원은 `members`에 연결) 가짜 수업 데이터를 넣는다.
+- [ ] 가짜 트레이너 계정 1개, 가짜 회원 계정 1개를 만들고(회원은 `members`에 연결) 가짜 캘린더 일정을 넣는다.
 - [ ] 2단계(repair 포함, 옛 기록 22개가 있는 상태를 흉내 낸 뒤)부터 6단계까지 **똑같은 명령으로** 수행한다.
 - [ ] 7단계 스모크 테스트를 리허설 프로젝트의 앱(Vercel 프리뷰 + 해당 프로젝트 키)에서 통과시킨다.
 - [ ] 리허설에서 막힌 점과 걸린 시간을 이 문서에 적어 둔다.
@@ -58,7 +60,7 @@ supabase migration list     # 로컬과 원격이 baseline까지 일치하는지
 확인한 것 (로컬, 운영 카탈로그 조회):
 - 운영의 마이그레이션 기록에는 옛 이름 22개 버전이 있다 (`list_migrations`로 조회, 2단계 목록과 같음).
 - baseline 파일은 운영 스키마와 테이블·컬럼·제약·인덱스·정책·권한이 일치한다 (해시 비교).
-- `supabase db reset`으로 빈 DB에서 baseline부터 끝까지 적용되고 pgTAP 119개가 통과한다.
+- `supabase db reset`으로 빈 DB에서 baseline부터 끝까지 적용되고 pgTAP 97개가 통과한다.
 - `postgres`는 운영·로컬 모두 슈퍼유저가 아니며, 로컬에서 `alter default privileges for role postgres`가 성공했다.
 
 리허설에서 직접 확인해야 하는 것 (하나라도 다르면 2단계 명령을 고치고 이 문서에 적는다):
@@ -67,7 +69,7 @@ supabase migration list     # 로컬과 원격이 baseline까지 일치하는지
 - [ ] **옛 22개를 `repair --status reverted`로 표시하면** `supabase_migrations.schema_migrations`에서 그 행들만 사라지고 **스키마는 그대로**인가
       (`\dt public.*`, 행 수 비교로 확인). 이것이 "옛 22개를 어떻게 처리하는가"에 대한 이 문서의 답이다. 대안(`supabase db pull`로 새 파일 생성)은 쓰지 않는다.
 - [ ] **`repair --status applied 20260830000000` 이후** `migration list`에서 baseline이 로컬·원격 양쪽에 "applied"로 보이는가.
-- [ ] **`supabase db push --dry-run`이 정확히 10개 파일(`…000100` ~ `…001000`)만 보여 주는가.** baseline이나 `seed.sql`이 목록에 있으면 중단.
+- [ ] **`supabase db push --dry-run`이 정확히 7개 파일(`…000100` ~ `…000700`)만 보여 주는가.** baseline이나 `seed.sql`이 목록에 있으면 중단.
 - [ ] 만약 baseline이 실행 대상에 들어가 버리면 첫 `create table`에서 "already exists"로 실패해야 한다 (마이그레이션 파일 하나는 한 트랜잭션이라
       중간까지 적용되지 않는다고 알고 있으나 **확인하지 못함**). 실제로 일부만 적용되는지 리허설에서 본다.
 - [ ] `db push`가 시드를 실행하지 않는가 (`--include-seed`를 붙이지 않은 기본 동작).
@@ -80,13 +82,13 @@ supabase migration list     # 로컬과 원격이 baseline까지 일치하는지
 ## 5. 마이그레이션 적용
 
 ```bash
-supabase db push --dry-run   # 적용될 파일이 …000100 ~ …001000 10개뿐인지 확인
+supabase db push --dry-run   # 적용될 파일이 …000100 ~ …000700 7개뿐인지 확인
 supabase db push
 ```
 
 - [ ] dry-run 목록에 baseline(`…000000`)이나 다른 파일이 없다.
 - [ ] 적용 후 `supabase migration list`가 로컬과 일치한다.
-- [ ] 새 테이블/함수에는 더 이상 기본 권한이 붙지 않습니다(`…000900`). 앞으로 만드는 테이블은 마이그레이션 안에서 `grant`를 직접 써야 합니다.
+- [ ] 새 테이블/뷰/함수에는 더 이상 기본 권한이 붙지 않습니다(`…000200`). 앞으로 만드는 테이블은 마이그레이션 안에서 `grant`를 직접 써야 합니다.
 
 ## 6. 트레이너 계정 등록 (ops 스니펫)
 
@@ -94,12 +96,11 @@ supabase db push
 Supabase 대시보드 → Authentication → Users에서 트레이너의 **User UID**를 복사해 사용합니다.
 
 ```bash
-psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시 이름>' \
-     -f supabase/ops/register_trainer.sql
+psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -f supabase/ops/register_trainer.sql
 ```
 
 - [ ] 트레이너 2~3명 모두 등록했다. 회원 로그인 계정은 등록되지 않는다(스니펫이 거부함).
-- [ ] `select user_id, instructor_name from public.trainers;`로 등록 결과를 확인했다.
+- [ ] `select user_id, created_at from public.trainers;`로 등록 결과를 확인했다.
 
 ## 6-1. 앱 코드 배포 (트레이너 판정을 `trainers` 행으로 변경)
 
@@ -107,6 +108,7 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 > main에 머지하면 Vercel이 바로 운영에 배포하는데, 변경된 서버 경로 3곳(초대, 비밀번호 재설정 링크, 회원 삭제)은 `public.trainers`에 행이 있는 사용자만 허용합니다.
 > 그 전에 배포하면 기존 트레이너도 `trainers` 행이 없어(테이블이 없어도 마찬가지) **초대·비밀번호 재설정·회원 삭제가 모두 "권한이 없습니다."(403 또는 안내 문구)로 막힙니다.**
 
+- **트레이너 등록은 필수입니다.** 초대·비밀번호 재설정·회원 삭제 3개 경로와 캘린더 RLS 모두 `trainers` 행으로 트레이너를 판정합니다. 등록하지 않은 계정은 이 기능을 쓸 수 없습니다.
 - 대상 파일: `app/api/members/invite/route.ts`, `app/api/members/reset-password/route.ts`, `app/trainer/members/actions.ts`(회원 삭제), `lib/auth.ts`(`isTrainer` 추가).
 - 커밋 제목: `Require a trainers row to create member invites`, `Require a trainers row for reset-password and member deletion`.
 - 브랜치 push로 생기는 Vercel **프리뷰**는 운영 URL이 아니지만, 프리뷰가 운영 Supabase 키를 쓰고 있다면 위 이유로 프리뷰에서 초대·비밀번호 재설정·회원 삭제가 막힙니다(정상).
@@ -115,7 +117,7 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 
 ## 7. 스모크 테스트 (운영, 각각 직접 눌러 본다)
 
-- [ ] `GET /api/health` → `{"ok":true,"queries":3}` (anon으로 3개 테이블을 읽는다. 500이면 `…000700`의 anon 권한을 점검)
+- [ ] `GET /api/health` → `{"ok":true,"queries":3}` (anon으로 3개 테이블을 읽는다. 500이면 `…000100`의 anon 권한을 점검)
 - [ ] 트레이너 로그인 → 회원 목록이 보인다
 - [ ] 트레이너가 새 회원 추가(초대 링크 발급)가 된다 (service role INSERT 경로)
 - [ ] 초대받은 회원이 비밀번호를 설정한다 (`members.password_set_at` 갱신: 회원 UPDATE 경로)
@@ -124,6 +126,7 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 - [ ] 트레이너가 비밀번호 재설정 링크를 발급한다 (`trainers` 행 확인 경로)
 - [ ] 트레이너가 회원 삭제를 한다 (테스트 회원으로. `auth` 계정까지 지워짐)
 - [ ] 회원이 다른 회원 데이터를 볼 수 없다 (URL 직접 입력으로 확인)
+- [ ] (DB만, 캘린더 UI 배포 전) 리허설 프로젝트에서 SQL로 확인: 트레이너 JWT로 `schedule_events` INSERT/SELECT가 되고, 회원 JWT로 `member_schedule`에 본인의 공개 일정만 보이며 `schedule_events` 직접 조회는 0행이다
 
 하나라도 실패하면 8단계의 해당 롤백을 하고 원인을 찾은 뒤 다시 시작합니다.
 
@@ -134,24 +137,20 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -v instructor_name='<표시
 
 | 마이그레이션 | 롤백 | 위험도 |
 | --- | --- | --- |
-| `…001000` INSERT 시 user_id 금지 | `alter policy members_insert_requires_trainer on public.members with check (private.is_trainer() and trainer_id = (select auth.uid()));` | 🟢 |
-| `…000900` 기본 권한 | `alter default privileges for role postgres in schema public grant all on tables to anon, authenticated; ... on sequences ...; ... on functions ...;` 와 `alter default privileges for role postgres grant execute on functions to public;` (이전 상태 복원, 미래 객체에만 영향) | 🟢 |
-| `…000800` user_id 고정 + INSERT 제한 (`…001000`이 INSERT 조건을 더 조임) | `drop policy members_insert_requires_trainer on public.members;` 그리고 `…000600`의 `private.members_self_update_guard()` 본문으로 `create or replace` | 🟢 |
-| `…000700` 권한 회수 | `grant truncate, trigger, references on all tables in schema public to anon, authenticated; grant all on all tables in schema public to anon;` (보안은 느슨해짐) | 🟢 |
-| `…000600` members 자기 수정 제한 | `drop trigger trg_members_self_update_guard on public.members; drop function private.members_self_update_guard();` | 🟢 |
-| `…000500` voided_at → superseded_at | `alter table public.schedule_signatures rename column superseded_at to voided_at;` 그리고 `…000300`의 함수 두 개 본문으로 `create or replace`. **앱/동기화 코드도 같이 되돌려야 함** | 🟡 |
-| `…000400` RLS·권한 | 정책 삭제 후 RLS를 켠 채 두면 접근이 모두 막혀 안전함. 완전 해제는 `alter table … disable row level security` (권장하지 않음) | 🟢 |
-| `…000300` 트리거 | 트리거와 `private.sched_before_write`, `sig_append_only`, `block_signed_lesson_delete` 삭제. **사인 불변 보호가 사라짐** | 🟡 |
-| `…000200` 스케줄 테이블 | `drop table schedule_signatures, schedule_lessons, schedule_enrollments;` — **행이 쌓인 뒤에는 데이터가 모두 사라짐. 먼저 이 3개 테이블을 덤프할 것.** 사인은 설계상 지울 수 없으므로(트리거) 롤백은 DROP TABLE로만 가능 | 🔴 |
-| `…000100` trainers + program | `drop function private.is_trainer(); drop table public.trainers; alter table public.members drop column program;` — **`program` 값과 trainers 행이 사라짐** | 🔴 |
+| `…000700` members 가드 (self-update 제한, user_id 고정, INSERT 제한) | `drop policy members_insert_requires_trainer on public.members; drop trigger trg_members_self_update_guard on public.members; drop function private.members_self_update_guard();` (보안이 느슨해짐) | 🟢 |
+| `…000600` `member_schedule` 뷰 | `drop view public.member_schedule;` (회원의 일정 조회 화면만 멈춤) | 🟡 |
+| `…000500` `schedule_events` RLS·권한 | 정책 삭제 후 RLS를 켠 채 두면 접근이 모두 막혀 안전함. 완전 해제는 `alter table … disable row level security` (권장하지 않음) | 🟢 |
+| `…000400` `schedule_events` 테이블 + 쓰기 트리거 | `drop table public.schedule_events; drop function private.sched_before_write();` — **일정이 쌓인 뒤에는 데이터가 모두 사라짐. 먼저 이 테이블을 덤프할 것.** 뷰(`…000600`)를 먼저 지워야 함 | 🔴 |
+| `…000300` `trainers` + `private.is_trainer()` | `drop function private.is_trainer(); drop table public.trainers;` — **앱 서버 경로 3곳(6-1단계)이 `trainers` 행을 요구하므로 앱 코드를 먼저 되돌릴 것.** 이후 `schedule_events` 정책도 이 함수를 쓰므로 `…000400`/`…000500`을 먼저 롤백 | 🔴 |
+| `…000200` 기본 권한 | `alter default privileges for role postgres in schema public grant all on tables to anon, authenticated; ... on sequences ...; ... on functions ...;` 와 `alter default privileges for role postgres grant execute on functions to public;` (이전 상태 복원, 미래 객체에만 영향) | 🟢 |
+| `…000100` 권한 회수 | `grant truncate, trigger, references on all tables in schema public to anon, authenticated; grant all on all tables in schema public to anon;` (보안은 느슨해짐) | 🟢 |
 | baseline repair (2단계) | `supabase migration repair --status`로 기록만 되돌릴 수 있음. 스키마에는 영향 없음 | 🟢 |
 
 앱 코드(6-1단계)를 되돌릴 때는 main에서 해당 커밋을 revert합니다. DB 롤백과는 독립적이며, 트레이너 등록 행(`trainers`)은 그대로 두어도 무해합니다.
 
 ### 파괴적이거나 되돌리기 어려운 것
 
-- 🔴 `…000100`: `members.program` 컬럼 삭제는 값이 사라진다. 주민 회원을 만든 뒤에는 롤백하지 않는다.
-- 🔴 `…000200`: 스케줄 테이블은 실데이터(수업, 사인)가 쌓이는 순간부터 롤백이 곧 데이터 손실이다. 사인은 정산 증빙이므로 먼저 덤프한다.
-- 🟡 `…000500`: DB는 쉽게 되돌리지만 앱이 `superseded_at`을 쓰기 시작한 뒤에는 앱도 함께 되돌려야 한다.
-- 🟡 `…000300`: 되돌리면 사인 변조 방지가 사라진다. 실데이터가 있는 상태에서는 하지 않는다.
-- `…000700`, `…000900`은 데이터를 건드리지 않지만, 되돌리면 보안이 약해진다(`TRUNCATE`는 RLS를 우회한다).
+- 🔴 `…000400`: `schedule_events`는 실데이터(트레이너의 일정)가 쌓이는 순간부터 롤백이 곧 데이터 손실이다. 먼저 덤프한다.
+- 🔴 `…000300`: `trainers`를 지우면 서버 경로 3곳이 모두 403이 된다. 앱 코드를 먼저 되돌린다.
+- 🟡 `…000600`: 뷰를 지우면 회원 화면만 멈춘다. 데이터는 그대로다.
+- `…000100`, `…000200`, `…000700`은 데이터를 건드리지 않지만, 되돌리면 보안이 약해진다(`TRUNCATE`는 RLS를 우회한다).
