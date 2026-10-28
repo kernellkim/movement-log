@@ -85,6 +85,7 @@ supabase test db    # pgTAP 테스트 (RLS 교차 접근, 트리거, 권한)
 
 - `supabase/ops/`의 SQL은 **마이그레이션이 아니라** 사람이 직접 한 번 실행하는 운영 스니펫입니다. 자동으로 적용되지 않습니다.
 - **`supabase/ops/register_trainer.sql`은 운영 DB에 캘린더 마이그레이션을 적용한 직후** 트레이너 계정마다 한 번 실행합니다(트레이너 등록은 초대·비밀번호 재설정·회원 삭제와 캘린더 모두에 필요). `trainers` 테이블은 마이그레이션 `20261028000300`이 만들기 때문에 그 전에는 실행할 수 없습니다. 같은 계정에 다시 실행해도 안전합니다.
+- **스케줄 화면 로컬 확인**: `supabase db reset` 뒤 `node supabase/ops/seed_local_schedule.mjs`로 가짜 트레이너·회원 3명·일정을 넣습니다(로컬 `127.0.0.1` 전용, 다시 실행해도 안전). 그리고 `.env.local`은 운영을 가리키므로 건드리지 말고, `.env.development.local`에 로컬 `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`(`supabase status -o env`)를 넣은 뒤 `npm run dev`. 가짜 계정: `sched-trainer@test.local` / `sched-member@test.local`(비밀번호는 시드 스크립트 머리 주석 참고). 단위 테스트는 `npm test`.
 - 운영 적용 절차와 롤백 방법은 [`supabase/ROLLOUT.md`](supabase/ROLLOUT.md)를 따릅니다. `baseline` 마이그레이션과 `seed.sql`은 운영에서 실행하지 않습니다.
 
 ## 출처
