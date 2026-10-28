@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMemberForUser } from "@/lib/auth";
+import { getMemberForUser, isTrainer } from "@/lib/auth";
 import { signOut } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
@@ -26,6 +26,9 @@ export default async function TrainerDashboard({
 
   const asMember = await getMemberForUser(supabase, user.id);
   if (asMember) redirect("/member");
+
+  // Schedule button: only for users with a row in public.trainers.
+  const showSchedule = await isTrainer(supabase, user.id);
 
   const { data: members } = await supabase
     .from("members")
@@ -248,6 +251,16 @@ export default async function TrainerDashboard({
         <h1 className="text-2xl font-semibold text-foreground">담당 회원</h1>
         <div className="flex items-center gap-2">
           <RefreshButton />
+          {showSchedule && (
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/trainer/schedule" />}
+            >
+              스케줄
+            </Button>
+          )}
           <Button
             size="sm"
             nativeButton={false}
