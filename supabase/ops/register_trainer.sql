@@ -16,7 +16,8 @@
   do $$ begin raise exception 'pass the trainer auth user id: -v trainer_user_id=<uuid>'; end $$;
 \endif
 
-select set_config('ops.trainer_user_id', :'trainer_user_id', false) as _;
+-- result row discarded (\g /dev/null) so the user id is not echoed to the terminal
+select set_config('ops.trainer_user_id', :'trainer_user_id', false) \g /dev/null
 
 do $ops$
 declare
@@ -33,6 +34,6 @@ begin
   values (uid)
   on conflict (user_id) do nothing;
 
-  raise notice 'trainer % registered (or already was)', uid;
+  raise notice 'trainer registered (or already was)';
 end
 $ops$;

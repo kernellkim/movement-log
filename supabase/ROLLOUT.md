@@ -77,9 +77,23 @@ supabase migration list     # 로컬과 원격이 baseline까지 일치하는지
       (`supabase_admin` 항목은 그대로 남는 것이 정상).
 - [ ] 같은 CLI 버전으로 확인한다 (이 레포에서 쓴 버전: 2.122.0).
 
+> **참고: SQL 레벨 리허설(운영 복원본을 plain Postgres 컨테이너에 올린 것)은 운영과 롤 속성이 다릅니다.** 그 복원본에서는 `postgres`가 **슈퍼유저**이고(운영은 아님), `service_role`에 **BYPASSRLS가 없습니다**(운영 Supabase에는 있음). 그래서 위 체크리스트의 "`postgres`는 슈퍼유저가 아니다"·`alter default privileges for role postgres` 성공·`pg_default_acl` 확인 항목과 service_role 흐름(초대 INSERT, 회원 삭제)은 이 복원본으로는 증명되지 않고, **Supabase 리허설 프로젝트에서만** 의미가 있습니다. 복원본에서는 service_role 테스트를 위해 롤백되는 트랜잭션 안에서 `alter role service_role bypassrls`로 흉내 냈습니다.
+
 ## 4. (건너뜀: 스니펫은 6단계로 이동. 위 메모 참고)
 
 ## 5. 마이그레이션 적용
+
+**적용 전 확인: anon 사용처 점검.** `…000100`은 anon에서 11개 테이블의 모든 권한을 회수하고, 3개 테이블(`exercise_library`, `members`, `routines`)은 SELECT만 남깁니다. 세션 없이 실행되는 코드가 그 밖의 테이블을 읽거나 쓰면 운영에서 `permission denied`(42501)로 깨집니다. 적용 전에 아래를 확인합니다.
+
+```bash
+# anon 키로 클라이언트를 만드는 곳 (현재: lib/supabase/{server,client,middleware}.ts 3곳뿐이어야 함)
+grep -rn "NEXT_PUBLIC_SUPABASE_ANON_KEY" app lib components proxy.ts
+# 세션 없이 통과시키는 경로 (현재: /login, /auth, /terms, /privacy, /api/health)
+grep -n "isAuthRoute" -A6 lib/supabase/middleware.ts
+```
+
+- [ ] 세션 없이 도달하는 경로가 `/api/health`(3개 테이블 SELECT)뿐이다. 새 공개 경로가 생겼다면 그 경로의 테이블·동작을 `…000100` 허용 목록과 비교했다.
+- (2026-10-29 점검 결과: 위 조건을 만족함. 상세는 감사 메모 `anon-audit.md` 참고, 레포 밖.)
 
 ```bash
 supabase db push --dry-run   # 적용될 파일이 …000100 ~ …000700 7개뿐인지 확인
@@ -139,14 +153,30 @@ psql "$DATABASE_URL" -v trainer_user_id='<User UID>' -f supabase/ops/register_tr
 | --- | --- | --- |
 | `…000700` members 가드 (self-update 제한, user_id 고정, INSERT 제한) | `drop policy members_insert_requires_trainer on public.members; drop trigger trg_members_self_update_guard on public.members; drop function private.members_self_update_guard();` (보안이 느슨해짐) | 🟢 |
 | `…000600` `member_schedule` 뷰 | `drop view public.member_schedule;` (회원의 일정 조회 화면만 멈춤) | 🟡 |
-| `…000500` `schedule_events` RLS·권한 | 정책 삭제 후 RLS를 켠 채 두면 접근이 모두 막혀 안전함. 완전 해제는 `alter table … disable row level security` (권장하지 않음) | 🟢 |
+| `…000500` `schedule_events` RLS·권한 | `drop policy evt_trainer_select on public.schedule_events; drop policy evt_trainer_insert on public.schedule_events; drop policy evt_trainer_update on public.schedule_events;` 정책 삭제 후 RLS를 켠 채 두면 접근이 모두 막혀 안전함. 완전 해제는 `alter table … disable row level security` (권장하지 않음) | 🟢 |
 | `…000400` `schedule_events` 테이블 + 쓰기 트리거 | `drop table public.schedule_events; drop function private.sched_before_write();` — **일정이 쌓인 뒤에는 데이터가 모두 사라짐. 먼저 이 테이블을 덤프할 것.** 뷰(`…000600`)를 먼저 지워야 함 | 🔴 |
-| `…000300` `trainers` + `private.is_trainer()` | `drop function private.is_trainer(); drop table public.trainers;` — **앱 서버 경로 3곳(6-1단계)이 `trainers` 행을 요구하므로 앱 코드를 먼저 되돌릴 것.** 이후 `schedule_events` 정책도 이 함수를 쓰므로 `…000400`/`…000500`을 먼저 롤백 | 🔴 |
-| `…000200` 기본 권한 | `alter default privileges for role postgres in schema public grant all on tables to anon, authenticated; ... on sequences ...; ... on functions ...;` 와 `alter default privileges for role postgres grant execute on functions to public;` (이전 상태 복원, 미래 객체에만 영향) | 🟢 |
+| `…000300` `trainers` + `private.is_trainer()` | `drop function private.is_trainer(); drop table public.trainers;` — **앱 서버 경로 3곳(6-1단계)이 `trainers` 행을 요구하므로 앱 코드를 먼저 되돌릴 것.** 이후 `schedule_events` 정책과 `members_insert_requires_trainer`(`…000700`)도 이 함수를 쓰므로 `…000700`/`…000500`/`…000400`을 먼저 롤백(아니면 `drop function`이 의존성 오류로 실패) | 🔴 |
+| `…000200` 기본 권한 | 아래 4줄을 그대로 실행 (이전 상태 복원, 미래 객체에만 영향). 리허설에서 이 4줄로 `pg_default_acl`이 베이스라인과 동일하게 복원됨을 확인함 | 🟢 |
 | `…000100` 권한 회수 | `grant truncate, trigger, references on all tables in schema public to anon, authenticated; grant all on all tables in schema public to anon;` (보안은 느슨해짐) | 🟢 |
 | baseline repair (2단계) | `supabase migration repair --status`로 기록만 되돌릴 수 있음. 스키마에는 영향 없음 | 🟢 |
 
+`…000200` 롤백 SQL (4줄 전체):
+
+```sql
+alter default privileges for role postgres in schema public grant all on tables to anon, authenticated;
+alter default privileges for role postgres in schema public grant all on sequences to anon, authenticated;
+alter default privileges for role postgres in schema public grant all on functions to anon, authenticated;
+alter default privileges for role postgres grant execute on functions to public;
+```
+
+**롤백 순서는 반드시 `…000700` → `…000100` (최신부터).** 의존성 때문입니다: `members_insert_requires_trainer`(`…000700`)와 `schedule_events` 정책(`…000500`)이 `private.is_trainer()`(`…000300`)를 쓰고, 뷰(`…000600`)가 `schedule_events`(`…000400`)를 읽습니다. 순서를 바꾸면 `drop function`/`drop table`이 의존성 오류로 막힙니다.
+리허설(`drill2`)에서 이 순서와 위 SQL로 롤백한 뒤 스키마 덤프가 베이스라인과 의미상 동일함을 확인했습니다(`GRANT` 줄의 나열 순서만 다름).
+
 앱 코드(6-1단계)를 되돌릴 때는 main에서 해당 커밋을 revert합니다. DB 롤백과는 독립적이며, 트레이너 등록 행(`trainers`)은 그대로 두어도 무해합니다.
+
+### 알려진 제약
+
+- **일정이 있는 트레이너의 `auth.users` 행은 삭제할 수 없습니다.** `schedule_events.trainer_id`가 `auth.users(id)`를 참조하고 `ON DELETE` 동작이 없어서, 그런 계정을 지우면 FK 오류(`23503`)가 납니다(리허설에서 확인). 트레이너 계정 삭제 절차가 생기면 그 트레이너의 `schedule_events`를 먼저 정리해야 합니다. (회원 삭제는 영향 없음: 회원을 지우면 일정은 남고 `member_id`만 NULL이 됩니다.)
 
 ### 파괴적이거나 되돌리기 어려운 것
 
