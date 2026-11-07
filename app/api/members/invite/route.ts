@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMemberForUser } from "@/lib/auth";
+import { isTrainer } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -13,9 +13,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  // 회원 본인 계정으로는 다른 회원을 초대할 수 없다 - 트레이너만 허용
-  const asMember = await getMemberForUser(supabase, user.id);
-  if (asMember) {
+  // Only registered trainers (a row in public.trainers) may invite members.
+  // This route inserts with the service role, so the check has to happen here.
+  if (!(await isTrainer(supabase, user.id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
