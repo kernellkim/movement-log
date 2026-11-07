@@ -15,10 +15,10 @@ truth for decisions): page ID `3cc42b8c3bc181bba32ae02c9858e178`.
 - UI components: shadcn/ui (base-ui) — Button uses `nativeButton={false} render={<Link .../>}`
   when it needs to act as a link, not `<Button><Link>...</Link></Button>` (causes an
   accessibility console warning).
-- Supabase (Postgres + RLS + Auth) — project ref `kkwlfrmrtatfmozewzxa`, Singapore region
+- Supabase (Postgres + RLS + Auth) — org `kernelkim_fitness`, project `movement.log`, ref `kkwlfrmrtatfmozewzxa`, Singapore region
 - Claude API (`@anthropic-ai/sdk`) for AI features:
   - Risk classification, assessment recommendation, routine generation, InBody photo value extraction (vision) → `claude-sonnet-5`
-- Deployed on Vercel, team `iigniim`
+- Deployed on Vercel, personal account `kernelkim`, project `movement-log` (production domain `movement-log-three.vercel.app`)
 
 ## Hard rules — do not violate
 1. **AI never makes a final medical/exercise decision.** Every AI-generated

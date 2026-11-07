@@ -66,7 +66,7 @@ PT 트레이너로 일하며 가장 많이 들었던 말은 "오늘 뭐 했는�
 ## 로컬 실행
 
 ```bash
-git clone https://github.com/iigniim/movement-log.git
+git clone https://github.com/kernellkim/movement-log.git
 cd movement-log
 npm install
 cp .env.example .env.local  # Supabase/Anthropic 키 입력
