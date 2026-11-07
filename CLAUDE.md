@@ -1,8 +1,8 @@
 # Movement.log — Project Instructions for Claude Code
 
 ## Project summary
-Movement.log is a PT (personal training) member management web app, built solo for
-the Wanted AI Championship 2026 hackathon (submission deadline: Sept 20, 2026).
+Movement.log is a PT (personal training) member management web app, built solo as a
+personal project.
 Two user roles: **trainer** (manages members, runs assessments, generates/edits
 routines, checks off sessions) and **member** (fills out a PAR-Q-style
 questionnaire, reviews past sessions and body composition).
