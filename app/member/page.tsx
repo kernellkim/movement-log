@@ -114,6 +114,21 @@ export default async function MemberDashboard({
       <Card>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
+            트레이너가 공유한 수업 일정을 확인해보세요
+          </p>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/member/schedule" />}
+          >
+            내 일정
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
             최근 인바디 기록을 확인하고 추이를 확인해보세요
           </p>
           <Button
