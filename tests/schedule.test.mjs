@@ -52,3 +52,34 @@ test("isMissingTableError", () => {
   assert.ok(isMissingTableError({ code: "42P01" }));
   assert.ok(!isMissingTableError({ code: "42501", message: "permission denied" }));
 });
+
+import {
+  todayKst, defaultRange, groupForMember, statusLabel,
+} from "../lib/member-schedule.ts";
+
+test("todayKst uses Asia/Seoul, not UTC", () => {
+  assert.equal(todayKst(new Date("2026-11-10T16:30:00Z")), "2026-11-11"); // 01:30 KST next day
+  assert.equal(todayKst(new Date("2026-11-10T14:59:00Z")), "2026-11-10");
+});
+
+test("defaultRange is 7 days back and 60 ahead", () => {
+  assert.deepEqual(defaultRange("2026-11-10"), { from: "2026-11-03", to: "2027-01-09" });
+});
+
+test("statusLabel gives Korean labels", () => {
+  assert.equal(statusLabel("scheduled"), "예정");
+  assert.equal(statusLabel("done"), "완료");
+  assert.equal(statusLabel("cancelled"), "취소");
+});
+
+test("groupForMember: upcoming ascending, then past newest first, times sorted", () => {
+  const ev = (id, d, s) => ({ id, event_date: d, start_time: s, end_time: "23:00:00", status: "scheduled", title: id });
+  const { upcoming, past } = groupForMember(
+    [ev("a", "2026-11-12", "10:00:00"), ev("b", "2026-11-10", "15:00:00"), ev("c", "2026-11-10", "09:00:00"),
+     ev("d", "2026-11-05", "09:00:00"), ev("e", "2026-11-08", "09:00:00")],
+    "2026-11-10",
+  );
+  assert.deepEqual(upcoming.map((g) => g.date), ["2026-11-10", "2026-11-12"]);
+  assert.deepEqual(upcoming[0].events.map((e) => e.id), ["c", "b"]);
+  assert.deepEqual(past.map((g) => g.date), ["2026-11-08", "2026-11-05"]);
+});
